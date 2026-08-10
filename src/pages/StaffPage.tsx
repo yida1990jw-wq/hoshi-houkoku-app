@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { FunctionsHttpError } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
 import { STAFF_ROLES, type Staff, type StaffRole } from '../types/domain'
 import { useAuth } from '../context/AuthContext'
@@ -49,7 +50,14 @@ export function StaffPage() {
       setRole('overseer')
       setFormOpen(false)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '招待に失敗しました')
+      if (e instanceof FunctionsHttpError) {
+        // supabase-jsのerror.messageは「Edge Function returned a non-2xx status code」という
+        // 汎用文言しか持たないため、関数が返したJSON本文から実際のエラー内容を取り出す
+        const body: { error?: string } | null = await e.context.json().catch(() => null)
+        setError(body?.error ?? e.message)
+      } else {
+        setError(e instanceof Error ? e.message : '招待に失敗しました')
+      }
     } finally {
       setInviting(false)
     }
