@@ -10,6 +10,7 @@ import { PublishersPage } from './pages/PublishersPage'
 import { PioneerProgressPage } from './pages/PioneerProgressPage'
 import { ReportsHubPage } from './pages/ReportsHubPage'
 import { StaffPage } from './pages/StaffPage'
+import { SetPasswordPage } from './pages/SetPasswordPage'
 import { YearEndNoticePrintPage } from './pages/print/YearEndNoticePrintPage'
 
 // pdf-lib/fontkit(数百KB)を使うため、印刷時にだけ読み込むよう分離する
@@ -84,7 +85,22 @@ function AppRoutes() {
   )
 }
 
+// 招待/パスワード再設定リンクは #access_token=...&type=invite のようにハッシュ部分に
+// トークンを載せて返ってくる。HashRouterはハッシュ全体をルートパスとして解釈してしまうため、
+// 通常のルーティングに乗せる前にここで検知し、専用のパスワード設定画面を表示する
+function isInviteOrRecoveryLink() {
+  return /type=(invite|recovery)/.test(window.location.hash)
+}
+
 export default function App() {
+  if (isInviteOrRecoveryLink()) {
+    return (
+      <AuthProvider>
+        <SetPasswordPage />
+      </AuthProvider>
+    )
+  }
+
   return (
     <HashRouter>
       <AuthProvider>
