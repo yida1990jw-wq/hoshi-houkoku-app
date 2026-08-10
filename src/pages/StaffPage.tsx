@@ -9,6 +9,16 @@ const ROLE_LABELS: Record<StaffRole, string> = {
   overseer: '監督者(閲覧のみ)',
 }
 
+// supabase-jsのFunctionsHttpErrorはerror.messageに「Edge Function returned a non-2xx status code」
+// という汎用文言しか持たないため、関数が返したJSON本文から実際のエラー内容を取り出す
+async function extractFunctionError(e: unknown): Promise<string> {
+  if (e instanceof FunctionsHttpError) {
+    const body: { error?: string } | null = await e.context.json().catch(() => null)
+    return body?.error ?? e.message
+  }
+  return e instanceof Error ? e.message : '処理に失敗しました'
+}
+
 export function StaffPage() {
   const { session } = useAuth()
   const [staff, setStaff] = useState<Staff[]>([])
@@ -41,7 +51,7 @@ export function StaffPage() {
     setError(null)
     try {
       const { error } = await supabase.functions.invoke('invite-staff', {
-        body: { email: email.trim(), display_name: displayName.trim(), role },
+        body: { action: 'invite', email: email.trim(), display_name: displayName.trim(), role },
       })
       if (error) throw error
       await refetch()
@@ -50,14 +60,7 @@ export function StaffPage() {
       setRole('overseer')
       setFormOpen(false)
     } catch (e) {
-      if (e instanceof FunctionsHttpError) {
-        // supabase-jsのerror.messageは「Edge Function returned a non-2xx status code」という
-        // 汎用文言しか持たないため、関数が返したJSON本文から実際のエラー内容を取り出す
-        const body: { error?: string } | null = await e.context.json().catch(() => null)
-        setError(body?.error ?? e.message)
-      } else {
-        setError(e instanceof Error ? e.message : '招待に失敗しました')
-      }
+      setError(await extractFunctionError(e))
     } finally {
       setInviting(false)
     }
@@ -75,14 +78,17 @@ export function StaffPage() {
   }
 
   async function handleDelete(s: Staff) {
-    if (!window.confirm(`「${s.display_name}」をスタッフから削除しますか?(ログインしてもデータは何も見られなくなります)`)) return
+    if (!window.confirm(`「${s.display_name}」を削除しますか?(ログインアカウント自体も完全に削除されます。復帰させる場合は改めて招待が必要です)`))
+      return
     setError(null)
     try {
-      const { error } = await supabase.from('staff').delete().eq('user_id', s.user_id)
+      const { error } = await supabase.functions.invoke('invite-staff', {
+        body: { action: 'delete', user_id: s.user_id },
+      })
       if (error) throw error
       await refetch()
     } catch (e) {
-      setError(e instanceof Error ? e.message : '削除に失敗しました')
+      setError(await extractFunctionError(e))
     }
   }
 
