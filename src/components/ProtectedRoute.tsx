@@ -10,3 +10,12 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
 
   return <>{children}</>
 }
+
+export function AdminRoute({ children }: { children: ReactNode }) {
+  const { loading, isAdmin } = useAuth()
+
+  if (loading) return <div className="center-message">読み込み中...</div>
+  if (!isAdmin) return <Navigate to="/" replace />
+
+  return <>{children}</>
+}

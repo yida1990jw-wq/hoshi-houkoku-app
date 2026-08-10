@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
-import { ProtectedRoute } from './components/ProtectedRoute'
+import { ProtectedRoute, AdminRoute } from './components/ProtectedRoute'
 import { Layout } from './components/Layout'
 import { LoginPage } from './pages/LoginPage'
 import { SubmissionStatusPage } from './pages/SubmissionStatusPage'
@@ -9,6 +9,7 @@ import { ReportsListPage } from './pages/ReportsListPage'
 import { PublishersPage } from './pages/PublishersPage'
 import { PioneerProgressPage } from './pages/PioneerProgressPage'
 import { ReportsHubPage } from './pages/ReportsHubPage'
+import { StaffPage } from './pages/StaffPage'
 import { YearEndNoticePrintPage } from './pages/print/YearEndNoticePrintPage'
 
 // pdf-lib/fontkit(数百KB)を使うため、印刷時にだけ読み込むよう分離する
@@ -57,6 +58,14 @@ function AdminArea() {
                 <Route path="/publishers" element={<PublishersPage />} />
                 <Route path="/pioneer-progress" element={<PioneerProgressPage />} />
                 <Route path="/reports" element={<ReportsHubPage />} />
+                <Route
+                  path="/staff"
+                  element={
+                    <AdminRoute>
+                      <StaffPage />
+                    </AdminRoute>
+                  }
+                />
               </Routes>
             </Layout>
           }

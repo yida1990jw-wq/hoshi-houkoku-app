@@ -10,14 +10,17 @@ const NAV_ITEMS = [
   { to: '/reports', label: '帳票印刷' },
 ]
 
+const ADMIN_NAV_ITEM = { to: '/staff', label: 'スタッフ管理', end: false }
+
 export function Layout({ children }: { children: ReactNode }) {
-  const { signOut } = useAuth()
+  const { signOut, isAdmin } = useAuth()
+  const navItems = isAdmin ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS
 
   return (
     <div className="app-shell">
       <header className="app-header">
         <nav className="app-nav">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

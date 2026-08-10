@@ -5,6 +5,7 @@ import { currentMonth, currentServiceYear } from '../lib/serviceYear'
 import { useSessionPersistedState } from '../lib/usePersistedState'
 import { mapPioneerStatus } from '../lib/importParsing'
 import { fetchLatestReportedPeriod } from '../lib/latestPeriod'
+import { useAuth } from '../context/AuthContext'
 
 const YEAR_OPTIONS = Array.from({ length: 6 }, (_, i) => currentServiceYear() - 2 + i)
 const MONTH_OPTIONS = [9, 10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8]
@@ -157,6 +158,7 @@ function ReportFormFields({
 }
 
 export function ReportsListPage() {
+  const { isAdmin } = useAuth()
   const [publishers, setPublishers] = useState<Publisher[]>([])
   const [reports, setReports] = useState<ServiceReport[]>([])
   const [year, setYear] = useSessionPersistedState('reportList.year', currentServiceYear())
@@ -410,9 +412,11 @@ export function ReportsListPage() {
     <div className="page">
       <div className="page-header">
         <h1>報告一覧</h1>
-        <button type="button" onClick={toggleAddRow}>
-          {editingId === NEW_ROW_ID ? '取消' : '+ 追加'}
-        </button>
+        {isAdmin && (
+          <button type="button" onClick={toggleAddRow}>
+            {editingId === NEW_ROW_ID ? '取消' : '+ 追加'}
+          </button>
+        )}
       </div>
       <div className="date-nav">
         <label>
@@ -462,34 +466,36 @@ export function ReportsListPage() {
           </tr>
         </tbody>
       </table>
-      <details className="paste-import">
-        <summary>報告を一括で貼り付けて取り込む({year}年度{month}月分)</summary>
-        <p className="paste-import-hint">
-          Googleスプレッドシートから「氏名・宣教(はい/いいえ)・研究・時間・備考・考慮・立場(任意)」の順にタブ区切りでコピーして貼り付けてください（1行1人）。氏名は名簿の姓名と完全一致(空白除く)で照合します。「立場」列はその月だけ補助開拓者だった場合などに指定してください。省略した場合は名簿の現在の立場が使われます。既に報告がある人・月の組み合わせは内容が上書きされ、貼り付けたデータに含まれない人の報告はそのまま残ります。宣教が「いいえ」の行は自動的にNC(集計対象外)になります。
-        </p>
-        <textarea
-          className="paste-import-textarea"
-          rows={8}
-          placeholder={'荒木 豊\tはい。\t0\t5\t\t0\n本徳 初紀\tはい。\t1\t8\t\t0\t補助開拓者'}
-          value={pasteText}
-          onChange={(e) => setPasteText(e.target.value)}
-        />
-        <button type="button" onClick={handleBulkImport} disabled={importing || !pasteText.trim()}>
-          {importing ? '取り込み中...' : '取り込む'}
-        </button>
-        {importResult && (
-          <div className="paste-import-result">
-            <p>{importResult.added}件を登録しました。</p>
-            {importResult.warnings.length > 0 && (
-              <ul>
-                {importResult.warnings.map((w, i) => (
-                  <li key={i}>{w}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-      </details>
+      {isAdmin && (
+        <details className="paste-import">
+          <summary>報告を一括で貼り付けて取り込む({year}年度{month}月分)</summary>
+          <p className="paste-import-hint">
+            Googleスプレッドシートから「氏名・宣教(はい/いいえ)・研究・時間・備考・考慮・立場(任意)」の順にタブ区切りでコピーして貼り付けてください（1行1人）。氏名は名簿の姓名と完全一致(空白除く)で照合します。「立場」列はその月だけ補助開拓者だった場合などに指定してください。省略した場合は名簿の現在の立場が使われます。既に報告がある人・月の組み合わせは内容が上書きされ、貼り付けたデータに含まれない人の報告はそのまま残ります。宣教が「いいえ」の行は自動的にNC(集計対象外)になります。
+          </p>
+          <textarea
+            className="paste-import-textarea"
+            rows={8}
+            placeholder={'荒木 豊\tはい。\t0\t5\t\t0\n本徳 初紀\tはい。\t1\t8\t\t0\t補助開拓者'}
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+          />
+          <button type="button" onClick={handleBulkImport} disabled={importing || !pasteText.trim()}>
+            {importing ? '取り込み中...' : '取り込む'}
+          </button>
+          {importResult && (
+            <div className="paste-import-result">
+              <p>{importResult.added}件を登録しました。</p>
+              {importResult.warnings.length > 0 && (
+                <ul>
+                  {importResult.warnings.map((w, i) => (
+                    <li key={i}>{w}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </details>
+      )}
       {error && <p className="error-text">{error}</p>}
       <table className="crud-table">
         <thead>
@@ -506,7 +512,7 @@ export function ReportsListPage() {
           </tr>
         </thead>
         <tbody>
-          {editingId === NEW_ROW_ID && (
+          {isAdmin && editingId === NEW_ROW_ID && (
             <tr>
               <td colSpan={9}>
                 <div className="publisher-inline-form">
@@ -526,7 +532,7 @@ export function ReportsListPage() {
             </tr>
           )}
           {sortedReports.map((r) =>
-            editingId === r.id ? (
+            isAdmin && editingId === r.id ? (
               <tr key={r.id}>
                 <td colSpan={9}>
                   <div className="publisher-inline-form">
@@ -555,12 +561,16 @@ export function ReportsListPage() {
                 <td>{r.pioneer_status_snapshot}</td>
                 <td>{r.no_count ? 'NC' : ''}</td>
                 <td className="row-actions">
-                  <button type="button" onClick={() => startEdit(r)}>
-                    編集
-                  </button>
-                  <button type="button" onClick={() => handleDelete(r)}>
-                    削除
-                  </button>
+                  {isAdmin && (
+                    <>
+                      <button type="button" onClick={() => startEdit(r)}>
+                        編集
+                      </button>
+                      <button type="button" onClick={() => handleDelete(r)}>
+                        削除
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             ),

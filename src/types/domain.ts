@@ -69,4 +69,5 @@ export interface Staff {
   user_id: string
   role: StaffRole
   display_name: string
+  email: string | null
 }

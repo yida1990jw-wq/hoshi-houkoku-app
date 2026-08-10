@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { useAuth } from '../context/AuthContext'
 import {
   DEDICATIONS,
   GENDERS,
@@ -298,6 +299,7 @@ function PublisherFormFields({
 }
 
 export function PublishersPage() {
+  const { isAdmin } = useAuth()
   const [publishers, setPublishers] = useState<Publisher[]>([])
   const [groups, setGroups] = useState<Group[]>([])
   const [loading, setLoading] = useState(true)
@@ -542,44 +544,48 @@ export function PublishersPage() {
     <div className="page">
       <div className="page-header">
         <h1>名簿</h1>
-        <button type="button" onClick={toggleAddRow}>
-          {editingId === NEW_ROW_ID ? '取消' : '+ 新規追加'}
-        </button>
+        {isAdmin && (
+          <button type="button" onClick={toggleAddRow}>
+            {editingId === NEW_ROW_ID ? '取消' : '+ 新規追加'}
+          </button>
+        )}
       </div>
 
-      <details className="paste-import">
-        <summary>名簿を一括で取り込む(初回の一括登録向け)</summary>
-        <p className="paste-import-hint">
-          タブ区切りで次の順に貼り付けてください(1行1人、姓・名は必須、他は空欄可):
-          <br />
-          姓・名・姓(フリガナ)・名(フリガナ)・ローマ字・性別・生年月日・バプテスマの日付・献身・希望・グループ・資格・長老資格日・援助奉仕者資格日・立場・開拓開始日(年月)
-          <br />
-          性別は「男性/女性」、献身は「兄弟/姉妹」、希望は「ほかの羊/天に行く者」、資格は「長老/援助奉仕者」、立場は「伝道者/補助開拓者/正規開拓者/特別開拓者/野外の宣教者/不活発者」(名簿シートの短縮コード「伝・開・特開・野宣・不・長・援」もそのまま使えます)。日付は
-          1955-02-19 のような形式、開拓開始日は 2024/9 のように年月だけで構いません。
-        </p>
-        <textarea
-          className="paste-import-textarea"
-          rows={8}
-          placeholder={'荒木\t豊\tアラキ\tユタカ\taraki yutaka\t男性\t1979-02-10\t1995-08-05\t兄弟\tほかの羊\t村野\t\t\t\t伝\t'}
-          value={pasteText}
-          onChange={(e) => setPasteText(e.target.value)}
-        />
-        <button type="button" onClick={handleBulkImport} disabled={importing || !pasteText.trim()}>
-          {importing ? '取り込み中...' : '取り込む'}
-        </button>
-        {importResult && (
-          <div className="paste-import-result">
-            <p>{importResult.added}件を登録しました。</p>
-            {importResult.warnings.length > 0 && (
-              <ul>
-                {importResult.warnings.map((w, i) => (
-                  <li key={i}>{w}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-      </details>
+      {isAdmin && (
+        <details className="paste-import">
+          <summary>名簿を一括で取り込む(初回の一括登録向け)</summary>
+          <p className="paste-import-hint">
+            タブ区切りで次の順に貼り付けてください(1行1人、姓・名は必須、他は空欄可):
+            <br />
+            姓・名・姓(フリガナ)・名(フリガナ)・ローマ字・性別・生年月日・バプテスマの日付・献身・希望・グループ・資格・長老資格日・援助奉仕者資格日・立場・開拓開始日(年月)
+            <br />
+            性別は「男性/女性」、献身は「兄弟/姉妹」、希望は「ほかの羊/天に行く者」、資格は「長老/援助奉仕者」、立場は「伝道者/補助開拓者/正規開拓者/特別開拓者/野外の宣教者/不活発者」(名簿シートの短縮コード「伝・開・特開・野宣・不・長・援」もそのまま使えます)。日付は
+            1955-02-19 のような形式、開拓開始日は 2024/9 のように年月だけで構いません。
+          </p>
+          <textarea
+            className="paste-import-textarea"
+            rows={8}
+            placeholder={'荒木\t豊\tアラキ\tユタカ\taraki yutaka\t男性\t1979-02-10\t1995-08-05\t兄弟\tほかの羊\t村野\t\t\t\t伝\t'}
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+          />
+          <button type="button" onClick={handleBulkImport} disabled={importing || !pasteText.trim()}>
+            {importing ? '取り込み中...' : '取り込む'}
+          </button>
+          {importResult && (
+            <div className="paste-import-result">
+              <p>{importResult.added}件を登録しました。</p>
+              {importResult.warnings.length > 0 && (
+                <ul>
+                  {importResult.warnings.map((w, i) => (
+                    <li key={i}>{w}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </details>
+      )}
 
       <div className="date-nav">
         <input
@@ -647,7 +653,7 @@ export function PublishersPage() {
           </tr>
         </thead>
         <tbody>
-          {editingId === NEW_ROW_ID && (
+          {isAdmin && editingId === NEW_ROW_ID && (
             <tr>
               <td colSpan={7}>
                 <div className="publisher-inline-form">
@@ -667,7 +673,7 @@ export function PublishersPage() {
             </tr>
           )}
           {visiblePublishers.map((p) =>
-            editingId === p.id ? (
+            isAdmin && editingId === p.id ? (
               <tr key={p.id}>
                 <td colSpan={7}>
                   <div className="publisher-inline-form">
@@ -694,12 +700,16 @@ export function PublishersPage() {
                 <td>{p.pioneer_status}</td>
                 <td>{p.is_active ? '在籍' : '転出/休止'}</td>
                 <td className="row-actions">
-                  <button type="button" onClick={() => startEdit(p)}>
-                    編集
-                  </button>
-                  <button type="button" onClick={() => handleDelete(p)}>
-                    削除
-                  </button>
+                  {isAdmin && (
+                    <>
+                      <button type="button" onClick={() => startEdit(p)}>
+                        編集
+                      </button>
+                      <button type="button" onClick={() => handleDelete(p)}>
+                        削除
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             ),
