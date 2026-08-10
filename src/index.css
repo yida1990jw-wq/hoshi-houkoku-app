@@ -1,0 +1,701 @@
+:root {
+  --text: #3f3d45;
+  --text-h: #08060d;
+  --bg: #fafafa;
+  --surface: #fff;
+  --border: #e2e1e6;
+  --accent: #6b3bff;
+  --accent-bg: rgba(107, 59, 255, 0.08);
+  --accent-contrast: #fff;
+  --danger: #c0362c;
+  --sans: system-ui, 'Segoe UI', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+
+  font: 16px/1.55 var(--sans);
+  color-scheme: light dark;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #d4d3d8;
+    --text-h: #f3f4f6;
+    --bg: #17171b;
+    --surface: #1f1f25;
+    --border: #333339;
+    --accent: #a389ff;
+    --accent-bg: rgba(163, 137, 255, 0.15);
+    --accent-contrast: #17171b;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+#root {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+h1,
+h2 {
+  font-weight: 600;
+  color: var(--text-h);
+  margin: 0;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+select,
+input {
+  font: inherit;
+}
+
+/* ---- layout ---- */
+
+.page {
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+.page-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+/* ---- app shell / nav ---- */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.app-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.app-nav-link {
+  padding: 6px 12px;
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.app-nav-link:hover {
+  background: var(--accent-bg);
+}
+
+.app-nav-link.active {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
+
+/* ---- generic crud table ---- */
+
+.crud-search {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-h);
+  width: 100%;
+  max-width: 320px;
+}
+
+.crud-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.crud-table th,
+.crud-table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  vertical-align: top;
+}
+
+.crud-table th {
+  background: var(--accent-bg);
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.crud-table tr:last-child td {
+  border-bottom: none;
+}
+
+.month-summary-table {
+  max-width: 360px;
+  margin-bottom: 16px;
+}
+
+.month-summary-table .summary-na-cell {
+  background: var(--accent-bg);
+}
+
+.month-summary-table .summary-total-row td {
+  font-weight: 700;
+  background: var(--accent-bg);
+}
+
+.crud-table input,
+.crud-table select {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-h);
+  width: 100%;
+}
+
+.crud-checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.crud-checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* ---- row action buttons (crud-table 操作列) ---- */
+
+.row-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+/* ---- publisher add/edit form ---- */
+
+.publisher-form,
+.publisher-inline-form {
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.publisher-form h2,
+.publisher-inline-form h2 {
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+.publisher-form-section {
+  margin-bottom: 14px;
+}
+
+.publisher-form-section h3 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  opacity: 0.75;
+  margin: 0 0 8px;
+  text-transform: none;
+}
+
+.publisher-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.publisher-form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.publisher-form-grid input,
+.publisher-form-grid select {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.publisher-form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.publisher-form-actions button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
+
+.publisher-form-actions button:last-child {
+  background: var(--surface);
+  color: var(--text-h);
+  border: 1px solid var(--border);
+}
+
+.page-header button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: var(--accent);
+  text-decoration: underline;
+  padding: 0;
+}
+
+.center-message {
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--text);
+}
+
+.error-text {
+  color: var(--danger);
+}
+
+/* ---- login ---- */
+
+.login-page {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.login-form {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px;
+}
+
+.login-form h1 {
+  font-size: 22px;
+  margin-bottom: 8px;
+}
+
+.login-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.login-form input,
+.login-form select {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.login-form button {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
+
+.login-form button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ---- date / month nav ---- */
+
+.date-nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.date-nav select {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-h);
+}
+
+.date-nav button {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-h);
+}
+
+.date-nav button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ---- paste import ---- */
+
+.paste-import {
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: var(--surface);
+}
+
+.paste-import summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.paste-import-hint {
+  font-size: 13px;
+  color: var(--text);
+  margin: 10px 0;
+}
+
+.paste-import-textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-h);
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.paste-import button {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
+
+.paste-import button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.paste-import-result {
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.paste-import-result ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  color: var(--danger);
+}
+
+/* ---- status badges (submission status page) ---- */
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-badge.submitted {
+  background: rgba(64, 160, 90, 0.15);
+  color: #2f8a4e;
+}
+
+.status-badge.pending {
+  background: rgba(192, 54, 44, 0.12);
+  color: var(--danger);
+}
+
+@media (prefers-color-scheme: dark) {
+  .status-badge.submitted {
+    color: #6fce8f;
+  }
+}
+
+/* ---- reports hub ---- */
+
+.reports-hint {
+  color: var(--text);
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.reports-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  max-width: 320px;
+}
+
+.reports-list a {
+  display: block;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-h);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.reports-list a:hover {
+  background: var(--accent-bg);
+}
+
+/* ---- print pages ---- */
+/* 印刷ページは常にライトテーマ(白地に黒)で表示する。画面のダークテーマ設定とは無関係 */
+
+.print-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f0f0f0;
+  border-bottom: 1px solid #ccc;
+}
+
+.print-toolbar button,
+.print-toolbar a {
+  padding: 6px 14px;
+  border: 1px solid #999;
+  border-radius: 6px;
+  background: #fff;
+  color: #222;
+  text-decoration: none;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.print-toolbar button.primary {
+  background: #6b3bff;
+  border-color: #6b3bff;
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ---- PDF埋め込み印刷ページ(S-21相当の帳票をpdf-libで直接埋め込む方式) ---- */
+
+.pdf-print-page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  color-scheme: light;
+  background: #fff;
+}
+
+.pdf-frame {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: #fff;
+  color-scheme: light;
+}
+
+.print-sheet {
+  background: #fff;
+  color: #111;
+  max-width: 210mm;
+  margin: 0 auto;
+  padding: 12mm;
+  font-family: var(--sans);
+}
+
+.print-sheet h1 {
+  font-size: 20px;
+  color: #111;
+  margin-bottom: 4px;
+}
+
+.print-sheet h2 {
+  color: #111;
+}
+
+.print-sheet table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/* ---- 会衆の伝道者記録(S-21相当)カード ---- */
+/* 公式書式のため、レイアウト・表記を実物の用紙と正確に一致させる */
+
+.card-table + .card-table {
+  margin-top: 24px;
+}
+
+.card-title {
+  text-align: center;
+  font-size: 20px;
+  margin-bottom: 10px;
+}
+
+.card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 1px 0;
+}
+
+.card-checkbox-pair {
+  display: flex;
+  gap: 24px;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.card-qual-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding: 8px 0 10px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.card-qual-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.card-qual-date {
+  font-size: 11px;
+  color: #555;
+}
+
+.card-table {
+  border: 2px solid #111;
+  margin-bottom: 18px;
+  font-size: 12px;
+  table-layout: fixed;
+}
+
+.card-table th,
+.card-table td {
+  border: 1px solid #111;
+  padding: 3px 8px;
+  text-align: center;
+  overflow-wrap: break-word;
+}
+
+.card-table th {
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.card-col-month {
+  width: 8%;
+}
+
+.card-col-narrow {
+  width: 10%;
+}
+
+.card-col-remarks {
+  width: 52%;
+}
+
+.card-table td:first-child {
+  text-align: center;
+}
+
+.card-table td:last-child {
+  text-align: left;
+}
+
+.card-total-row td {
+  font-weight: 700;
+}
+
+.card-total-label {
+  text-align: right !important;
+}
+
+@media print {
+  .print-toolbar {
+    display: none;
+  }
+  body {
+    background: #fff;
+  }
+  .print-sheet {
+    padding: 0;
+    max-width: none;
+  }
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+}
