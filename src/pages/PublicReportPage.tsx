@@ -145,6 +145,39 @@ export function PublicReportPage() {
     })
   }
 
+  async function submitReport(fields: {
+    preached: boolean
+    bible_studies: number
+    hours: number
+    considered_hours: number
+    remarks: string | null
+    pioneer_status_snapshot: string
+  }) {
+    if (!publisher) return
+    setSubmitting(true)
+    try {
+      // 未ログイン(anon)にはservice_reportsの閲覧(select)権限を与えていないため、
+      // upsert()のON CONFLICT経路(内部的にSELECT権限を要求する)はRLSで弾かれる。
+      // 既に存在するかは事前のpublic_report_existsで分かっているので、insert/updateを分けて呼ぶ
+      const { error } = reportExists
+        ? await supabase
+            .from('service_reports')
+            .update(fields)
+            .match({ publisher_id: publisher.id, year: period.year, month: period.month })
+        : await supabase
+            .from('service_reports')
+            .insert({ publisher_id: publisher.id, year: period.year, month: period.month, ...fields })
+      if (error) throw error
+      setStep('done')
+    } catch (e) {
+      const message = e instanceof Error ? e.message : '送信に失敗しました'
+      const code = (e as { code?: string })?.code
+      setSubmitError(code ? `${message}(${code})` : message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   async function handleSubmit() {
     if (!publisher) return
     setValidationError(null)
@@ -154,6 +187,20 @@ export function PublicReportPage() {
       setValidationError('宣教を行ったかどうかを選択してください')
       return
     }
+
+    // 伝道に参加していない月は、以降の項目を尋ねず空の報告として送信する
+    if (form.preached === false) {
+      await submitReport({
+        preached: false,
+        bible_studies: 0,
+        hours: 0,
+        considered_hours: 0,
+        remarks: null,
+        pioneer_status_snapshot: publisher.pioneer_status,
+      })
+      return
+    }
+
     if (isPublisherStatus && form.auxChoice === null) {
       setValidationError('補助開拓を行ったかどうかを選択してください')
       return
@@ -200,37 +247,14 @@ export function PublicReportPage() {
 
     const pioneerStatusSnapshot = auxChoice ? '補助開拓者' : publisher.pioneer_status
 
-    const fields = {
+    await submitReport({
       preached: form.preached ?? false,
       bible_studies: Number(form.bibleStudies) || 0,
       hours: hoursNum,
       considered_hours: cappedConsideredHours,
       remarks: remarks || null,
       pioneer_status_snapshot: pioneerStatusSnapshot,
-    }
-
-    setSubmitting(true)
-    try {
-      // 未ログイン(anon)にはservice_reportsの閲覧(select)権限を与えていないため、
-      // upsert()のON CONFLICT経路(内部的にSELECT権限を要求する)はRLSで弾かれる。
-      // 既に存在するかは事前のpublic_report_existsで分かっているので、insert/updateを分けて呼ぶ
-      const { error } = reportExists
-        ? await supabase
-            .from('service_reports')
-            .update(fields)
-            .match({ publisher_id: publisher.id, year: period.year, month: period.month })
-        : await supabase
-            .from('service_reports')
-            .insert({ publisher_id: publisher.id, year: period.year, month: period.month, ...fields })
-      if (error) throw error
-      setStep('done')
-    } catch (e) {
-      const message = e instanceof Error ? e.message : '送信に失敗しました'
-      const code = (e as { code?: string })?.code
-      setSubmitError(code ? `${message}(${code})` : message)
-    } finally {
-      setSubmitting(false)
-    }
+    })
   }
 
   if (loading) return <div className="center-message">読み込み中...</div>
@@ -285,78 +309,87 @@ export function PublicReportPage() {
               <YesNoButtons value={form.preached} onChange={(v) => setForm((f) => ({ ...f, preached: v }))} />
             </div>
 
-            <label>
-              研究
-              <input type="number" min="0" value={form.bibleStudies} onChange={(e) => setForm((f) => ({ ...f, bibleStudies: e.target.value }))} />
-              <span className="reports-hint">司会した個別の聖書研究の数(回数ではなく件数)</span>
-            </label>
-
-            {isPublisherStatus && (
-              <div className="yes-no-field">
-                <span>補助開拓を行いましたか</span>
-                <AuxChoiceButtons value={form.auxChoice} onChange={(v) => setForm((f) => ({ ...f, auxChoice: v }))} />
-              </div>
-            )}
-
-            {needsHours && (
-              <label>
-                時間
-                <input type="number" min="0" value={form.hours} onChange={(e) => setForm((f) => ({ ...f, hours: e.target.value }))} />
-                <span className="reports-hint">
-                  1時間単位での報告。端数は次月に繰り越して報告してください。実際に野外奉仕にあてた時間を報告してください。(考慮時間のある方は、その時間を足さずに報告)
-                </span>
-              </label>
-            )}
-
-            {isPioneerTarget && (
+            {form.preached !== false && (
               <>
-                <div className="yes-no-field">
-                  <span>考慮対象の奉仕や学校に参加しましたか</span>
-                  <YesNoButtons value={form.hasConsideration} onChange={(v) => setForm((f) => ({ ...f, hasConsideration: v }))} />
-                  <span className="reports-hint">大会に関連した部門奉仕や支部主催の学校など。</span>
-                </div>
+                <label>
+                  研究
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.bibleStudies}
+                    onChange={(e) => setForm((f) => ({ ...f, bibleStudies: e.target.value }))}
+                  />
+                  <span className="reports-hint">司会した個別の聖書研究の数(回数ではなく件数)</span>
+                </label>
 
-                {form.hasConsideration && (
+                {isPublisherStatus && (
+                  <div className="yes-no-field">
+                    <span>補助開拓を行いましたか</span>
+                    <AuxChoiceButtons value={form.auxChoice} onChange={(v) => setForm((f) => ({ ...f, auxChoice: v }))} />
+                  </div>
+                )}
+
+                {needsHours && (
+                  <label>
+                    時間
+                    <input type="number" min="0" value={form.hours} onChange={(e) => setForm((f) => ({ ...f, hours: e.target.value }))} />
+                    <span className="reports-hint">
+                      1時間単位での報告。端数は次月に繰り越して報告してください。実際に野外奉仕にあてた時間を報告してください。(考慮時間のある方は、その時間を足さずに報告)
+                    </span>
+                  </label>
+                )}
+
+                {isPioneerTarget && (
                   <>
-                    <div className="crud-checkbox-group">
-                      {CONSIDERATION_REASONS.map((r) => (
-                        <label key={r}>
-                          <input type="checkbox" checked={form.reasons.includes(r)} onChange={() => toggleReason(r)} />
-                          {r}
-                        </label>
-                      ))}
+                    <div className="yes-no-field">
+                      <span>考慮対象の奉仕や学校に参加しましたか</span>
+                      <YesNoButtons value={form.hasConsideration} onChange={(v) => setForm((f) => ({ ...f, hasConsideration: v }))} />
+                      <span className="reports-hint">大会に関連した部門奉仕や支部主催の学校など。</span>
                     </div>
-                    {form.reasons.includes('その他') && (
-                      <label>
-                        その他の内容
-                        <input
-                          value={form.otherReasonText}
-                          onChange={(e) => setForm((f) => ({ ...f, otherReasonText: e.target.value }))}
-                        />
-                      </label>
+
+                    {form.hasConsideration && (
+                      <>
+                        <div className="crud-checkbox-group">
+                          {CONSIDERATION_REASONS.map((r) => (
+                            <label key={r}>
+                              <input type="checkbox" checked={form.reasons.includes(r)} onChange={() => toggleReason(r)} />
+                              {r}
+                            </label>
+                          ))}
+                        </div>
+                        {form.reasons.includes('その他') && (
+                          <label>
+                            その他の内容
+                            <input
+                              value={form.otherReasonText}
+                              onChange={(e) => setForm((f) => ({ ...f, otherReasonText: e.target.value }))}
+                            />
+                          </label>
+                        )}
+                        <label>
+                          考慮時間
+                          <input
+                            type="number"
+                            min="0"
+                            value={form.consideredHours}
+                            onChange={(e) => setForm((f) => ({ ...f, consideredHours: e.target.value }))}
+                          />
+                          <span className="reports-hint">
+                            1時間単位で記入ください。理由が複数ある方、それぞれの時間を合計してください。他の月に振り分けたり、繰り越したりはできません。
+                          </span>
+                        </label>
+                      </>
                     )}
-                    <label>
-                      考慮時間
-                      <input
-                        type="number"
-                        min="0"
-                        value={form.consideredHours}
-                        onChange={(e) => setForm((f) => ({ ...f, consideredHours: e.target.value }))}
-                      />
-                      <span className="reports-hint">
-                        1時間単位で記入ください。理由が複数ある方、それぞれの時間を合計してください。他の月に振り分けたり、繰り越したりはできません。
-                      </span>
-                    </label>
                   </>
                 )}
+
+                <label>
+                  備考
+                  <input value={form.remarks} onChange={(e) => setForm((f) => ({ ...f, remarks: e.target.value }))} />
+                  <span className="reports-hint">連絡事項。要求時間を満たせなかった理由など。何もなければ空欄のままでお願いします。</span>
+                </label>
               </>
             )}
-
-            <label>
-              備考
-              <input value={form.remarks} onChange={(e) => setForm((f) => ({ ...f, remarks: e.target.value }))} />
-              <span className="reports-hint">連絡事項。要求時間を満たせなかった理由など。何もなければ空欄のままでお願いします。</span>
-            </label>
 
             {validationError && <p className="error-text">{validationError}</p>}
             {submitError && <p className="error-text">{submitError}</p>}
