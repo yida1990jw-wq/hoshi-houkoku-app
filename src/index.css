@@ -372,6 +372,11 @@ input {
   padding: 16px;
 }
 
+.login-page-top {
+  align-items: flex-start;
+  padding-top: 48px;
+}
+
 .login-form {
   width: 100%;
   max-width: 360px;

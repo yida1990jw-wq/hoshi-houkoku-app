@@ -264,7 +264,7 @@ export function PublicReportPage() {
   if (loading) return <div className="center-message">読み込み中...</div>
 
   return (
-    <div className="login-page">
+    <div className="login-page login-page-top">
       <div className="login-form" style={{ maxWidth: 480 }}>
         <h1>野外奉仕の報告</h1>
         <p className="reports-hint">
