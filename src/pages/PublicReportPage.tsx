@@ -61,6 +61,7 @@ export function PublicReportPage() {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [validationError, setValidationError] = useState<string | null>(null)
   const [checkingExisting, setCheckingExisting] = useState(false)
+  const [reportExists, setReportExists] = useState(false)
 
   const period = useMemo(() => computeReportPeriod(), [])
 
@@ -100,6 +101,7 @@ export function PublicReportPage() {
         p_month: period.month,
       })
       if (error) throw error
+      setReportExists(!!data)
       setStep(data ? 'notice' : 'form')
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : '確認に失敗しました')
@@ -110,6 +112,7 @@ export function PublicReportPage() {
 
   function handleCancelNotice() {
     setPublisherId('')
+    setReportExists(false)
     setValidationError(null)
     setSubmitError(null)
     setStep('select')
@@ -124,6 +127,7 @@ export function PublicReportPage() {
 
   function handleRestart() {
     setPublisherId('')
+    setReportExists(false)
     setForm(EMPTY_FORM)
     setValidationError(null)
     setSubmitError(null)
@@ -196,22 +200,28 @@ export function PublicReportPage() {
 
     const pioneerStatusSnapshot = auxChoice ? '補助開拓者' : publisher.pioneer_status
 
+    const fields = {
+      preached: form.preached ?? false,
+      bible_studies: Number(form.bibleStudies) || 0,
+      hours: hoursNum,
+      considered_hours: cappedConsideredHours,
+      remarks: remarks || null,
+      pioneer_status_snapshot: pioneerStatusSnapshot,
+    }
+
     setSubmitting(true)
     try {
-      const { error } = await supabase.from('service_reports').upsert(
-        {
-          publisher_id: publisher.id,
-          year: period.year,
-          month: period.month,
-          preached: form.preached ?? false,
-          bible_studies: Number(form.bibleStudies) || 0,
-          hours: hoursNum,
-          considered_hours: cappedConsideredHours,
-          remarks: remarks || null,
-          pioneer_status_snapshot: pioneerStatusSnapshot,
-        },
-        { onConflict: 'publisher_id,year,month' },
-      )
+      // 未ログイン(anon)にはservice_reportsの閲覧(select)権限を与えていないため、
+      // upsert()のON CONFLICT経路(内部的にSELECT権限を要求する)はRLSで弾かれる。
+      // 既に存在するかは事前のpublic_report_existsで分かっているので、insert/updateを分けて呼ぶ
+      const { error } = reportExists
+        ? await supabase
+            .from('service_reports')
+            .update(fields)
+            .match({ publisher_id: publisher.id, year: period.year, month: period.month })
+        : await supabase
+            .from('service_reports')
+            .insert({ publisher_id: publisher.id, year: period.year, month: period.month, ...fields })
       if (error) throw error
       setStep('done')
     } catch (e) {
