@@ -6,6 +6,7 @@ import { useSessionPersistedState } from '../lib/usePersistedState'
 import { mapPioneerStatus } from '../lib/importParsing'
 import { fetchLatestReportedPeriod } from '../lib/latestPeriod'
 import { useAuth } from '../context/AuthContext'
+import { RowActionsMenu } from '../components/RowActionsMenu'
 
 const YEAR_OPTIONS = Array.from({ length: 6 }, (_, i) => currentServiceYear() - 2 + i)
 const MONTH_OPTIONS = [9, 10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8]
@@ -561,16 +562,7 @@ export function ReportsListPage() {
                 <td>{r.pioneer_status_snapshot}</td>
                 <td>{r.no_count ? 'NC' : ''}</td>
                 <td className="row-actions">
-                  {isAdmin && (
-                    <>
-                      <button type="button" onClick={() => startEdit(r)}>
-                        編集
-                      </button>
-                      <button type="button" onClick={() => handleDelete(r)}>
-                        削除
-                      </button>
-                    </>
-                  )}
+                  {isAdmin && <RowActionsMenu onEdit={() => startEdit(r)} onDelete={() => handleDelete(r)} />}
                 </td>
               </tr>
             ),

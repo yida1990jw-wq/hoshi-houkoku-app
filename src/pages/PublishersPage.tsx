@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
+import { RowActionsMenu } from '../components/RowActionsMenu'
 import {
   DEDICATIONS,
   GENDERS,
@@ -791,16 +792,7 @@ export function PublishersPage() {
                 <td>{p.pioneer_status}</td>
                 <td>{p.is_active ? '在籍' : '転出/休止'}</td>
                 <td className="row-actions">
-                  {isAdmin && (
-                    <>
-                      <button type="button" onClick={() => startEdit(p)}>
-                        編集
-                      </button>
-                      <button type="button" onClick={() => handleDelete(p)}>
-                        削除
-                      </button>
-                    </>
-                  )}
+                  {isAdmin && <RowActionsMenu onEdit={() => startEdit(p)} onDelete={() => handleDelete(p)} />}
                 </td>
               </tr>
             ),
