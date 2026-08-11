@@ -67,6 +67,9 @@ export function PublicReportPage() {
 
   async function handleSelectPublisher(id: string) {
     setPublisherId(id)
+    setForm(EMPTY_FORM)
+    setValidationError(null)
+    setSubmitError(null)
     if (!id) return
     setCheckingExisting(true)
     setLoadError(null)
@@ -87,11 +90,15 @@ export function PublicReportPage() {
 
   function handleCancelNotice() {
     setPublisherId('')
+    setValidationError(null)
+    setSubmitError(null)
     setStep('select')
   }
 
   function handleContinueFromNotice() {
     setForm(EMPTY_FORM)
+    setValidationError(null)
+    setSubmitError(null)
     setStep('form')
   }
 
