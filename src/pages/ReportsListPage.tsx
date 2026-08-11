@@ -509,7 +509,7 @@ export function ReportsListPage() {
             <th>備考</th>
             <th>立場(当時)</th>
             <th>NC</th>
-            <th>操作</th>
+            {isAdmin && <th>操作</th>}
           </tr>
         </thead>
         <tbody>
@@ -561,9 +561,11 @@ export function ReportsListPage() {
                 <td>{r.remarks ?? ''}</td>
                 <td>{r.pioneer_status_snapshot}</td>
                 <td>{r.no_count ? 'NC' : ''}</td>
-                <td className="row-actions">
-                  {isAdmin && <RowActionsMenu onEdit={() => startEdit(r)} onDelete={() => handleDelete(r)} />}
-                </td>
+                {isAdmin && (
+                  <td className="row-actions">
+                    <RowActionsMenu onEdit={() => startEdit(r)} onDelete={() => handleDelete(r)} />
+                  </td>
+                )}
               </tr>
             ),
           )}

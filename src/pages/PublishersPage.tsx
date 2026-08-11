@@ -741,7 +741,7 @@ export function PublishersPage() {
             <th>資格</th>
             <th>立場</th>
             <th>在籍</th>
-            <th>操作</th>
+            {isAdmin && <th>操作</th>}
           </tr>
         </thead>
         <tbody>
@@ -791,9 +791,11 @@ export function PublishersPage() {
                 <td>{p.qualification ?? ''}</td>
                 <td>{p.pioneer_status}</td>
                 <td>{p.is_active ? '在籍' : '転出/休止'}</td>
-                <td className="row-actions">
-                  {isAdmin && <RowActionsMenu onEdit={() => startEdit(p)} onDelete={() => handleDelete(p)} />}
-                </td>
+                {isAdmin && (
+                  <td className="row-actions">
+                    <RowActionsMenu onEdit={() => startEdit(p)} onDelete={() => handleDelete(p)} />
+                  </td>
+                )}
               </tr>
             ),
           )}
