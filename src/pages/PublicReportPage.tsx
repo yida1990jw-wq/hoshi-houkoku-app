@@ -285,18 +285,18 @@ export function PublicReportPage() {
               <YesNoButtons value={form.preached} onChange={(v) => setForm((f) => ({ ...f, preached: v }))} />
             </div>
 
+            <label>
+              研究
+              <input type="number" min="0" value={form.bibleStudies} onChange={(e) => setForm((f) => ({ ...f, bibleStudies: e.target.value }))} />
+              <span className="reports-hint">司会した個別の聖書研究の数(回数ではなく件数)</span>
+            </label>
+
             {isPublisherStatus && (
               <div className="yes-no-field">
                 <span>補助開拓を行いましたか</span>
                 <AuxChoiceButtons value={form.auxChoice} onChange={(v) => setForm((f) => ({ ...f, auxChoice: v }))} />
               </div>
             )}
-
-            <label>
-              研究
-              <input type="number" min="0" value={form.bibleStudies} onChange={(e) => setForm((f) => ({ ...f, bibleStudies: e.target.value }))} />
-              <span className="reports-hint">司会した個別の聖書研究の数(回数ではなく件数)</span>
-            </label>
 
             {needsHours && (
               <label>
