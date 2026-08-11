@@ -7,15 +7,28 @@ import { PIONEER_TARGET_STATUSES, ROSTER_STATUS_ORDER, type PublicPublisher } fr
 type Step = 'select' | 'notice' | 'form' | 'done'
 
 const EMPTY_FORM = {
-  preached: true,
+  preached: null as boolean | null,
   auxChoice: 'none' as 'none' | '15' | '30',
   bibleStudies: '0',
   hours: '',
-  hasConsideration: false,
+  hasConsideration: null as boolean | null,
   reasons: [] as ConsiderationReason[],
   otherReasonText: '',
   consideredHours: '0',
   remarks: '',
+}
+
+function YesNoButtons({ value, onChange }: { value: boolean | null; onChange: (v: boolean) => void }) {
+  return (
+    <div className="yes-no-buttons">
+      <button type="button" className={value === true ? 'active' : ''} onClick={() => onChange(true)}>
+        はい
+      </button>
+      <button type="button" className={value === false ? 'active' : ''} onClick={() => onChange(false)}>
+        いいえ
+      </button>
+    </div>
+  )
 }
 
 export function PublicReportPage() {
@@ -82,6 +95,14 @@ export function PublicReportPage() {
     setStep('form')
   }
 
+  function handleRestart() {
+    setPublisherId('')
+    setForm(EMPTY_FORM)
+    setValidationError(null)
+    setSubmitError(null)
+    setStep('select')
+  }
+
   function toggleReason(reason: ConsiderationReason) {
     setForm((f) => {
       if (reason === '開拓者学校') {
@@ -97,6 +118,15 @@ export function PublicReportPage() {
     if (!publisher) return
     setValidationError(null)
     setSubmitError(null)
+
+    if (form.preached === null) {
+      setValidationError('宣教を行ったかどうかを選択してください')
+      return
+    }
+    if (isPioneerTarget && form.hasConsideration === null) {
+      setValidationError('考慮対象の奉仕や学校に参加したかどうかを選択してください')
+      return
+    }
 
     const hoursNum = isPublisherStatus ? 0 : Number(form.hours) || 0
     if (!isPublisherStatus && form.hours.trim() === '') {
@@ -142,7 +172,7 @@ export function PublicReportPage() {
           publisher_id: publisher.id,
           year: period.year,
           month: period.month,
-          preached: form.preached,
+          preached: form.preached ?? false,
           bible_studies: Number(form.bibleStudies) || 0,
           hours: hoursNum,
           considered_hours: cappedConsideredHours,
@@ -207,13 +237,10 @@ export function PublicReportPage() {
             <p>
               {publisher.last_name} {publisher.first_name}さんの{period.year}年度{period.month}月分の報告
             </p>
-            <label>
-              1ヵ月間に何らかの形で伝道に参加しましたか
-              <select value={form.preached ? '1' : '0'} onChange={(e) => setForm((f) => ({ ...f, preached: e.target.value === '1' }))}>
-                <option value="1">はい</option>
-                <option value="0">いいえ</option>
-              </select>
-            </label>
+            <div className="yes-no-field">
+              <span>1ヵ月間に何らかの形で伝道に参加しましたか</span>
+              <YesNoButtons value={form.preached} onChange={(v) => setForm((f) => ({ ...f, preached: v }))} />
+            </div>
 
             {isPublisherStatus && (
               <label>
@@ -244,17 +271,11 @@ export function PublicReportPage() {
 
             {isPioneerTarget && (
               <>
-                <label>
-                  考慮対象の奉仕や学校に参加しましたか
-                  <select
-                    value={form.hasConsideration ? '1' : '0'}
-                    onChange={(e) => setForm((f) => ({ ...f, hasConsideration: e.target.value === '1' }))}
-                  >
-                    <option value="0">いいえ</option>
-                    <option value="1">はい</option>
-                  </select>
+                <div className="yes-no-field">
+                  <span>考慮対象の奉仕や学校に参加しましたか</span>
+                  <YesNoButtons value={form.hasConsideration} onChange={(v) => setForm((f) => ({ ...f, hasConsideration: v }))} />
                   <span className="reports-hint">大会に関連した部門奉仕や支部主催の学校など。</span>
-                </label>
+                </div>
 
                 {form.hasConsideration && (
                   <>
@@ -304,14 +325,21 @@ export function PublicReportPage() {
               <button type="button" onClick={handleSubmit} disabled={submitting}>
                 {submitting ? '送信中...' : '送信する'}
               </button>
-              <button type="button" onClick={() => setStep('select')} disabled={submitting}>
+              <button type="button" onClick={handleRestart} disabled={submitting}>
                 やり直す
               </button>
             </div>
           </div>
         )}
 
-        {step === 'done' && <p>送信しました。ありがとうございました。</p>}
+        {step === 'done' && (
+          <div>
+            <p>送信しました。ありがとうございました。</p>
+            <button type="button" onClick={handleRestart}>
+              別の人の報告を入力する
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
