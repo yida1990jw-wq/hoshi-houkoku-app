@@ -374,9 +374,14 @@ export function PublicReportPage() {
         {step === 'done' && (
           <div>
             <p>送信しました。ありがとうございました。</p>
-            <button type="button" onClick={handleRestart}>
-              別の人の報告を入力する
-            </button>
+            <div className="publisher-form-actions">
+              <button type="button" onClick={() => window.close()}>
+                閉じる
+              </button>
+              <button type="button" onClick={handleRestart}>
+                初めに戻る
+              </button>
+            </div>
           </div>
         )}
       </div>
