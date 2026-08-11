@@ -152,6 +152,7 @@ export function PublicReportPage() {
     considered_hours: number
     remarks: string | null
     pioneer_status_snapshot: string
+    no_count: boolean
   }) {
     if (!publisher) return
     setSubmitting(true)
@@ -197,6 +198,8 @@ export function PublicReportPage() {
         considered_hours: 0,
         remarks: null,
         pioneer_status_snapshot: publisher.pioneer_status,
+        // 管理者側の手入力・取込と同じく、伝道していない月の報告は集計対象から外す
+        no_count: true,
       })
       return
     }
@@ -254,6 +257,7 @@ export function PublicReportPage() {
       considered_hours: cappedConsideredHours,
       remarks: remarks || null,
       pioneer_status_snapshot: pioneerStatusSnapshot,
+      no_count: false,
     })
   }
 
