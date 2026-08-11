@@ -6,9 +6,11 @@ import { PIONEER_TARGET_STATUSES, ROSTER_STATUS_ORDER, type PublicPublisher } fr
 
 type Step = 'select' | 'notice' | 'form' | 'done'
 
+type AuxChoice = 'none' | '15' | '30'
+
 const EMPTY_FORM = {
   preached: null as boolean | null,
-  auxChoice: 'none' as 'none' | '15' | '30',
+  auxChoice: null as AuxChoice | null,
   bibleStudies: '0',
   hours: '',
   hasConsideration: null as boolean | null,
@@ -26,6 +28,22 @@ function YesNoButtons({ value, onChange }: { value: boolean | null; onChange: (v
       </button>
       <button type="button" className={value === false ? 'active' : ''} onClick={() => onChange(false)}>
         いいえ
+      </button>
+    </div>
+  )
+}
+
+function AuxChoiceButtons({ value, onChange }: { value: AuxChoice | null; onChange: (v: AuxChoice) => void }) {
+  return (
+    <div className="yes-no-buttons">
+      <button type="button" className={value === 'none' ? 'active' : ''} onClick={() => onChange('none')}>
+        いいえ
+      </button>
+      <button type="button" className={value === '15' ? 'active' : ''} onClick={() => onChange('15')}>
+        15時間
+      </button>
+      <button type="button" className={value === '30' ? 'active' : ''} onClick={() => onChange('30')}>
+        30時間
       </button>
     </div>
   )
@@ -128,6 +146,10 @@ export function PublicReportPage() {
 
     if (form.preached === null) {
       setValidationError('宣教を行ったかどうかを選択してください')
+      return
+    }
+    if (isPublisherStatus && form.auxChoice === null) {
+      setValidationError('補助開拓を行ったかどうかを選択してください')
       return
     }
     if (isPioneerTarget && form.hasConsideration === null) {
@@ -250,14 +272,10 @@ export function PublicReportPage() {
             </div>
 
             {isPublisherStatus && (
-              <label>
-                補助開拓を行いましたか
-                <select value={form.auxChoice} onChange={(e) => setForm((f) => ({ ...f, auxChoice: e.target.value as typeof f.auxChoice }))}>
-                  <option value="none">いいえ</option>
-                  <option value="15">15時間</option>
-                  <option value="30">30時間</option>
-                </select>
-              </label>
+              <div className="yes-no-field">
+                <span>補助開拓を行いましたか</span>
+                <AuxChoiceButtons value={form.auxChoice} onChange={(v) => setForm((f) => ({ ...f, auxChoice: v }))} />
+              </div>
             )}
 
             <label>
