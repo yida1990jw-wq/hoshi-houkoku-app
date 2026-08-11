@@ -19,6 +19,11 @@ export type PioneerStatus = (typeof PIONEER_STATUSES)[number]
 // (補助開拓者は15h/30hの短期キャンペーンで年間・月間の要求時間という概念が無いため対象外)
 export const PIONEER_TARGET_STATUSES = ['正規開拓者', '特別開拓者', '野外の宣教者'] as const
 
+// 名簿・帳票印刷の伝道者選択リストの並び順(伝道者→正規開拓者→特別開拓者→野外の宣教者を優先し、
+// 補助開拓者・不活発者は末尾)。PIONEER_STATUSESの宣言順(伝道者→補助開拓者→…)とは別物であることに注意
+// — こちらは表示順専用で、他の並び替えロジック(報告一覧の月次グルーピングなど)には使わない
+export const ROSTER_STATUS_ORDER = ['伝道者', '正規開拓者', '特別開拓者', '野外の宣教者', '補助開拓者', '不活発者'] as const
+
 export const STAFF_ROLES = ['admin', 'overseer'] as const
 export type StaffRole = (typeof STAFF_ROLES)[number]
 

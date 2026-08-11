@@ -8,6 +8,7 @@ import {
   PIONEER_STATUSES,
   PIONEER_TARGET_STATUSES,
   QUALIFICATIONS,
+  ROSTER_STATUS_ORDER,
   type Group,
   type Publisher,
 } from '../types/domain'
@@ -325,7 +326,7 @@ export function PublishersPage() {
   const [groupFilter, setGroupFilter] = useState('')
   const [qualificationFilter, setQualificationFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
-  const [sortKey, setSortKey] = useState<'romaji' | 'lastName' | 'group' | 'qualification' | 'status'>('romaji')
+  const [sortKey, setSortKey] = useState<'romaji' | 'lastName' | 'group' | 'qualification' | 'status'>('status')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draft, setDraft] = useState<PublisherDraft>(EMPTY_DRAFT)
   const [pasteText, setPasteText] = useState('')
@@ -378,8 +379,10 @@ export function PublishersPage() {
           return groupName(a.group_id).localeCompare(groupName(b.group_id))
         case 'qualification':
           return (a.qualification ?? '').localeCompare(b.qualification ?? '')
-        case 'status':
-          return PIONEER_STATUSES.indexOf(a.pioneer_status) - PIONEER_STATUSES.indexOf(b.pioneer_status)
+        case 'status': {
+          const statusDiff = ROSTER_STATUS_ORDER.indexOf(a.pioneer_status) - ROSTER_STATUS_ORDER.indexOf(b.pioneer_status)
+          return statusDiff !== 0 ? statusDiff : (a.romaji ?? '').localeCompare(b.romaji ?? '')
+        }
         case 'romaji':
         default:
           return (a.romaji ?? '').localeCompare(b.romaji ?? '')

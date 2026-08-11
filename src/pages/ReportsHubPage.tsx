@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
-import { PIONEER_TARGET_STATUSES, type Publisher } from '../types/domain'
+import { PIONEER_TARGET_STATUSES, ROSTER_STATUS_ORDER, type Publisher } from '../types/domain'
 import { currentServiceYear } from '../lib/serviceYear'
 import { usePersistedState, useSessionPersistedState } from '../lib/usePersistedState'
 import { SUMMARY_PATTERNS, type SummaryPattern } from '../lib/printData'
@@ -27,9 +27,15 @@ export function ReportsHubPage() {
     supabase
       .from('publishers')
       .select('*')
-      .order('last_name_kana')
       .returns<Publisher[]>()
-      .then(({ data }) => setPublishers(data ?? []))
+      .then(({ data }) => {
+        // 伝道者→正規開拓者→特別開拓者→野外の宣教者(→補助開拓者→不活発者)の順、各々の中はローマ字順
+        const sorted = [...(data ?? [])].sort((a, b) => {
+          const statusDiff = ROSTER_STATUS_ORDER.indexOf(a.pioneer_status) - ROSTER_STATUS_ORDER.indexOf(b.pioneer_status)
+          return statusDiff !== 0 ? statusDiff : (a.romaji ?? '').localeCompare(b.romaji ?? '')
+        })
+        setPublishers(sorted)
+      })
   }, [])
 
   useEffect(() => {
