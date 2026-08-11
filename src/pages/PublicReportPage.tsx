@@ -80,6 +80,8 @@ export function PublicReportPage() {
 
   const publisher = publishers.find((p) => p.id === publisherId)
   const isPublisherStatus = publisher?.pioneer_status === '伝道者'
+  // 伝道者でもその月に補助開拓(15h/30h)を行った場合は時間の報告が必要
+  const needsHours = !isPublisherStatus || form.auxChoice === '15' || form.auxChoice === '30'
   const isPioneerTarget =
     !!publisher && PIONEER_TARGET_STATUSES.includes(publisher.pioneer_status as (typeof PIONEER_TARGET_STATUSES)[number])
 
@@ -157,8 +159,8 @@ export function PublicReportPage() {
       return
     }
 
-    const hoursNum = isPublisherStatus ? 0 : Number(form.hours) || 0
-    if (!isPublisherStatus && form.hours.trim() === '') {
+    const hoursNum = needsHours ? Number(form.hours) || 0 : 0
+    if (needsHours && form.hours.trim() === '') {
       setValidationError('時間を入力してください')
       return
     }
@@ -213,7 +215,9 @@ export function PublicReportPage() {
       if (error) throw error
       setStep('done')
     } catch (e) {
-      setSubmitError(e instanceof Error ? e.message : '送信に失敗しました')
+      const message = e instanceof Error ? e.message : '送信に失敗しました'
+      const code = (e as { code?: string })?.code
+      setSubmitError(code ? `${message}(${code})` : message)
     } finally {
       setSubmitting(false)
     }
@@ -284,7 +288,7 @@ export function PublicReportPage() {
               <span className="reports-hint">司会した個別の聖書研究の数(回数ではなく件数)</span>
             </label>
 
-            {!isPublisherStatus && (
+            {needsHours && (
               <label>
                 時間
                 <input type="number" min="0" value={form.hours} onChange={(e) => setForm((f) => ({ ...f, hours: e.target.value }))} />
