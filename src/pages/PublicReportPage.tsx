@@ -373,13 +373,10 @@ export function PublicReportPage() {
 
         {step === 'done' && (
           <div>
-            <p>送信しました。ありがとうございました。</p>
+            <p>送信しました。ありがとうございました。このページは閉じていただいて構いません。</p>
             <div className="publisher-form-actions">
-              <button type="button" onClick={() => window.close()}>
-                閉じる
-              </button>
               <button type="button" onClick={handleRestart}>
-                初めに戻る
+                はじめから
               </button>
             </div>
           </div>

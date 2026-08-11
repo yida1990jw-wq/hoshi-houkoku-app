@@ -10,7 +10,7 @@ const NAV_ITEMS = [
   { to: '/reports', label: '帳票印刷' },
 ]
 
-const ADMIN_NAV_ITEM = { to: '/staff', label: 'スタッフ管理', end: false }
+const ADMIN_NAV_ITEM = { to: '/staff', label: '設定', end: false }
 
 export function Layout({ children }: { children: ReactNode }) {
   const { signOut, isAdmin } = useAuth()

@@ -1,8 +1,47 @@
 import { useEffect, useState } from 'react'
 import { FunctionsHttpError } from '@supabase/supabase-js'
+import QRCode from 'qrcode'
 import { supabase } from '../lib/supabaseClient'
 import { STAFF_ROLES, type Staff, type StaffRole } from '../types/domain'
 import { useAuth } from '../context/AuthContext'
+
+const REPORT_LINK = `${window.location.origin}${window.location.pathname}#/submit`
+
+function ReportLinkSection() {
+  const [copied, setCopied] = useState(false)
+  const [qrDataUrl, setQrDataUrl] = useState('')
+
+  useEffect(() => {
+    QRCode.toDataURL(REPORT_LINK, { width: 220 })
+      .then(setQrDataUrl)
+      .catch(() => setQrDataUrl(''))
+  }, [])
+
+  async function handleCopy() {
+    await navigator.clipboard.writeText(REPORT_LINK)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <section className="publisher-inline-form">
+      <h2>報告リンク</h2>
+      <p className="reports-hint">ログイン不要で野外奉仕の報告を送信できるページです。奉仕者に共有してください。</p>
+      <div className="publisher-form-grid">
+        <label>
+          リンク
+          <input value={REPORT_LINK} readOnly onFocus={(e) => e.target.select()} />
+        </label>
+      </div>
+      <div className="publisher-form-actions">
+        <button type="button" onClick={handleCopy}>
+          {copied ? 'コピーしました' : 'リンクをコピー'}
+        </button>
+      </div>
+      {qrDataUrl && <img src={qrDataUrl} alt="報告リンクのQRコード" width={220} height={220} />}
+    </section>
+  )
+}
 
 const ROLE_LABELS: Record<StaffRole, string> = {
   admin: '管理者(閲覧・編集)',
@@ -97,7 +136,13 @@ export function StaffPage() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1>スタッフ管理</h1>
+        <h1>設定</h1>
+      </div>
+
+      <ReportLinkSection />
+
+      <div className="page-header">
+        <h2>スタッフ管理</h2>
         <button type="button" onClick={() => setFormOpen((v) => !v)}>
           {formOpen ? '取消' : '+ 招待'}
         </button>
