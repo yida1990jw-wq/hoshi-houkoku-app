@@ -83,3 +83,15 @@ export interface Staff {
   display_name: string
   email: string | null
 }
+
+// 公開報告フォーム(未ログイン)向けのビュー public_publisher_roster に対応する、
+// 個人情報を含まない最小限の型
+export interface PublicPublisher {
+  id: string
+  last_name: string
+  first_name: string
+  romaji: string | null
+  pioneer_status: PioneerStatus
+  group_id: string | null
+  monthly_hour_target: number | null
+}

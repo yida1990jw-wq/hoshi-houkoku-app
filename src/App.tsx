@@ -11,6 +11,7 @@ import { PioneerProgressPage } from './pages/PioneerProgressPage'
 import { ReportsHubPage } from './pages/ReportsHubPage'
 import { StaffPage } from './pages/StaffPage'
 import { SetPasswordPage } from './pages/SetPasswordPage'
+import { PublicReportPage } from './pages/PublicReportPage'
 import { YearEndNoticePrintPage } from './pages/print/YearEndNoticePrintPage'
 
 // pdf-lib/fontkit(数百KB)を使うため、印刷時にだけ読み込むよう分離する
@@ -80,6 +81,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginRoute />} />
+      <Route path="/submit" element={<PublicReportPage />} />
       <Route path="/*" element={<AdminArea />} />
     </Routes>
   )
