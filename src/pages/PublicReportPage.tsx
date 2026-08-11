@@ -219,11 +219,6 @@ export function PublicReportPage() {
       return
     }
 
-    // 月間要求時間に満たない場合、備考への記入を必須にする
-    if (isPioneerTarget && publisher.monthly_hour_target && hoursNum < publisher.monthly_hour_target && !form.remarks.trim()) {
-      setValidationError('要求時間に満たない月は、備考欄に理由の記入が必要です')
-      return
-    }
     if (form.hasConsideration && form.reasons.length === 0) {
       setValidationError('考慮の理由を選択してください')
       return
@@ -237,6 +232,17 @@ export function PublicReportPage() {
     const cappedConsideredHours = form.hasConsideration
       ? capConsideredHours(hoursNum, consideredHoursRaw, form.reasons)
       : 0
+
+    // 月間要求時間に満たない場合、備考への記入を必須にする(考慮時間を含めた時間で判定する)
+    if (
+      isPioneerTarget &&
+      publisher.monthly_hour_target &&
+      hoursNum + cappedConsideredHours < publisher.monthly_hour_target &&
+      !form.remarks.trim()
+    ) {
+      setValidationError('要求時間に満たない月は、備考欄に理由の記入が必要です')
+      return
+    }
 
     const auxChoice = form.auxChoice === 'none' ? null : form.auxChoice
     const remarks = composeRemarks({
