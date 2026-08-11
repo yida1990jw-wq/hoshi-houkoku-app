@@ -29,6 +29,7 @@ const TABLE1_ROWS: MonthFieldSet[] = [
 ]
 const TABLE1_YEAR = 'Text 90'
 const TABLE1_TOTAL_HOURS = 'Text 192'
+const TABLE1_REMARKS_TOTAL = 'Text 193'
 
 const TABLE2_ROWS: MonthFieldSet[] = [
   { preached: 'CheckBox 48', studies: 'Text 202', aux: 'CheckBox 49', hours: 'Text 204', remarks: 'Text 205' },
@@ -46,6 +47,7 @@ const TABLE2_ROWS: MonthFieldSet[] = [
 ]
 const TABLE2_YEAR = 'Text 194'
 const TABLE2_TOTAL_HOURS = 'Text 296'
+const TABLE2_REMARKS_TOTAL = 'Text 297'
 
 // PDF内の静的ラベルの実サイズに合わせたフィールドフォントサイズ(pypdf/PyMuPDFで実測)
 const DEFAULT_FONT_SIZE = 9
@@ -105,9 +107,17 @@ function setCheckbox(form: PDFForm, name: string, checked: boolean) {
   else box.uncheck()
 }
 
-function fillTable(form: PDFForm, block: PublisherCardYearBlock, yearField: string, rows: MonthFieldSet[], totalField: string) {
+function fillTable(
+  form: PDFForm,
+  block: PublisherCardYearBlock,
+  yearField: string,
+  rows: MonthFieldSet[],
+  totalField: string,
+  remarksTotalField: string,
+) {
   setText(form, yearField, String(block.year), { fontSize: MONTH_FONT_SIZE, align: 'center' })
   let totalHours = 0
+  let totalConsidered = 0
   block.months.forEach(({ report }, i) => {
     const fields = rows[i]
     setCheckbox(form, fields.preached, report?.preached ?? false)
@@ -124,9 +134,13 @@ function fillTable(form: PDFForm, block: PublisherCardYearBlock, yearField: stri
       setText(form, fields.hours, '―', hoursOptions)
     }
 
+    totalConsidered += report?.considered_hours ?? 0
     setText(form, fields.remarks, report?.remarks ?? '')
   })
   setText(form, totalField, String(totalHours), { fontSize: MONTH_FONT_SIZE, align: 'center' })
+  if (totalConsidered > 0) {
+    setText(form, remarksTotalField, `奉仕時間${totalHours}h+加算時間${totalConsidered}h=${totalHours + totalConsidered}時間`)
+  }
 }
 
 async function loadTemplate() {
@@ -187,8 +201,8 @@ export async function fillPublisherCardPdf(data: PublisherCardData): Promise<Uin
   setText(form, 'Text 301', publisher.pioneer_status === '特別開拓者' ? formatShortYearMonth(publisher.pioneer_started_on) : '')
   setText(form, 'Text 302', publisher.pioneer_status === '野外の宣教者' ? formatShortYearMonth(publisher.pioneer_started_on) : '')
 
-  fillTable(form, data.blocks[0], TABLE1_YEAR, TABLE1_ROWS, TABLE1_TOTAL_HOURS)
-  fillTable(form, data.blocks[1], TABLE2_YEAR, TABLE2_ROWS, TABLE2_TOTAL_HOURS)
+  fillTable(form, data.blocks[0], TABLE1_YEAR, TABLE1_ROWS, TABLE1_TOTAL_HOURS, TABLE1_REMARKS_TOTAL)
+  fillTable(form, data.blocks[1], TABLE2_YEAR, TABLE2_ROWS, TABLE2_TOTAL_HOURS, TABLE2_REMARKS_TOTAL)
 
   form.updateFieldAppearances(japaneseFont)
   form.flatten()

@@ -4,6 +4,7 @@ import type { Publisher, ServiceReport } from '../types/domain'
 import { currentServiceYear, SERVICE_YEAR_MONTHS } from '../lib/serviceYear'
 import { useSessionPersistedState } from '../lib/usePersistedState'
 import { fetchLatestReportedYear } from '../lib/latestPeriod'
+import { shortfallColor } from '../lib/shortfallColor'
 
 const YEAR_OPTIONS = Array.from({ length: 6 }, (_, i) => currentServiceYear() - 2 + i)
 const PIONEER_TYPES = ['補助開拓者', '正規開拓者', '特別開拓者', '野外の宣教者']
@@ -80,7 +81,34 @@ export function PioneerProgressPage() {
       const remainingMonths = monthlyHours.filter((h) => h === null).length
       const remainingPerMonth = remainingMonths > 0 ? (target - achieved) / remainingMonths : null
 
-      return { publisher: p, monthlyHours, total, monthlyAverage, consideredTotal, achieved, target, remainingPerMonth }
+      // 月間要求時間を基準にした色分け(不足/超過が1時間〜要求時間の50%の範囲で黄色→赤色)。
+      // 月間要求時間が無い立場(補助開拓者など)は色を付けない
+      const monthlyTarget = p.monthly_hour_target
+      const monthlyColors = monthlyHours.map((h) =>
+        h === null || !monthlyTarget ? undefined : shortfallColor(monthlyTarget - h, monthlyTarget * 0.5),
+      )
+      const cumulativeRequired = monthlyTarget ? monthlyTarget * reportedMonths.length : 0
+      const achievedColor = monthlyTarget
+        ? shortfallColor(cumulativeRequired - achieved, cumulativeRequired * 0.5)
+        : undefined
+      const remainingColor =
+        monthlyTarget && remainingPerMonth !== null
+          ? shortfallColor(remainingPerMonth - monthlyTarget, monthlyTarget * 0.5)
+          : undefined
+
+      return {
+        publisher: p,
+        monthlyHours,
+        total,
+        monthlyAverage,
+        consideredTotal,
+        achieved,
+        target,
+        remainingPerMonth,
+        monthlyColors,
+        achievedColor,
+        remainingColor,
+      }
     })
   }, [publishers, reports, year])
 
@@ -121,22 +149,40 @@ export function PioneerProgressPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ publisher, monthlyHours, total, monthlyAverage, consideredTotal, achieved, target, remainingPerMonth }) => (
-              <tr key={publisher.id}>
-                <td>
-                  {publisher.last_name} {publisher.first_name}
-                </td>
-                {monthlyHours.map((h, i) => (
-                  <td key={i}>{h ?? ''}</td>
-                ))}
-                <td>{total}</td>
-                <td>{monthlyAverage.toFixed(1)}</td>
-                <td>{consideredTotal}</td>
-                <td>{achieved}</td>
-                <td>{target || ''}</td>
-                <td>{remainingPerMonth === null ? '年度終了' : Math.round(remainingPerMonth)}</td>
-              </tr>
-            ))}
+            {rows.map(
+              ({
+                publisher,
+                monthlyHours,
+                total,
+                monthlyAverage,
+                consideredTotal,
+                achieved,
+                target,
+                remainingPerMonth,
+                monthlyColors,
+                achievedColor,
+                remainingColor,
+              }) => (
+                <tr key={publisher.id}>
+                  <td>
+                    {publisher.last_name} {publisher.first_name}
+                  </td>
+                  {monthlyHours.map((h, i) => (
+                    <td key={i} style={monthlyColors[i] ? { color: monthlyColors[i] } : undefined}>
+                      {h ?? ''}
+                    </td>
+                  ))}
+                  <td>{total}</td>
+                  <td>{monthlyAverage.toFixed(1)}</td>
+                  <td>{consideredTotal}</td>
+                  <td style={achievedColor ? { color: achievedColor } : undefined}>{achieved}</td>
+                  <td>{target || ''}</td>
+                  <td style={remainingColor ? { color: remainingColor } : undefined}>
+                    {remainingPerMonth === null ? '年度終了' : Math.round(remainingPerMonth)}
+                  </td>
+                </tr>
+              ),
+            )}
           </tbody>
         </table>
       </div>

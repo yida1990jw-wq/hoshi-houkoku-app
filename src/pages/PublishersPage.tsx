@@ -6,6 +6,7 @@ import {
   GENDERS,
   HOPES,
   PIONEER_STATUSES,
+  PIONEER_TARGET_STATUSES,
   QUALIFICATIONS,
   type Group,
   type Publisher,
@@ -42,6 +43,7 @@ interface PublisherDraft {
   pioneer_status: string
   pioneer_started_on: string
   annual_hour_target: string
+  monthly_hour_target: string
   is_active: boolean
 }
 
@@ -63,6 +65,7 @@ const EMPTY_DRAFT: PublisherDraft = {
   pioneer_status: PIONEER_STATUSES[0],
   pioneer_started_on: '',
   annual_hour_target: '',
+  monthly_hour_target: '',
   is_active: true,
 }
 
@@ -85,6 +88,7 @@ function draftFromPublisher(p: Publisher): PublisherDraft {
     pioneer_status: p.pioneer_status,
     pioneer_started_on: isoDateToYearMonth(p.pioneer_started_on),
     annual_hour_target: p.annual_hour_target === null ? '' : String(p.annual_hour_target),
+    monthly_hour_target: p.monthly_hour_target === null ? '' : String(p.monthly_hour_target),
     is_active: p.is_active,
   }
 }
@@ -108,6 +112,7 @@ function draftToPatch(d: PublisherDraft) {
     pioneer_status: d.pioneer_status,
     pioneer_started_on: yearMonthToIsoDate(d.pioneer_started_on),
     annual_hour_target: d.annual_hour_target.trim() === '' ? null : Number(d.annual_hour_target),
+    monthly_hour_target: d.monthly_hour_target.trim() === '' ? null : Number(d.monthly_hour_target),
     is_active: d.is_active,
   }
 }
@@ -284,14 +289,26 @@ function PublisherFormFields({
               />
             </label>
           )}
-          <label>
-            年間目標時間(h)
-            <input
-              type="number"
-              value={draft.annual_hour_target}
-              onChange={(e) => setDraft((d) => ({ ...d, annual_hour_target: e.target.value }))}
-            />
-          </label>
+          {PIONEER_TARGET_STATUSES.includes(draft.pioneer_status as (typeof PIONEER_TARGET_STATUSES)[number]) && (
+            <>
+              <label>
+                年間要求時間(h)
+                <input
+                  type="number"
+                  value={draft.annual_hour_target}
+                  onChange={(e) => setDraft((d) => ({ ...d, annual_hour_target: e.target.value }))}
+                />
+              </label>
+              <label>
+                月間要求時間(h)
+                <input
+                  type="number"
+                  value={draft.monthly_hour_target}
+                  onChange={(e) => setDraft((d) => ({ ...d, monthly_hour_target: e.target.value }))}
+                />
+              </label>
+            </>
+          )}
         </div>
       </div>
     </>

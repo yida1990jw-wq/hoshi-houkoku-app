@@ -15,6 +15,10 @@ export type Qualification = (typeof QUALIFICATIONS)[number]
 export const PIONEER_STATUSES = ['伝道者', '補助開拓者', '正規開拓者', '特別開拓者', '野外の宣教者', '不活発者'] as const
 export type PioneerStatus = (typeof PIONEER_STATUSES)[number]
 
+// 年間/月間要求時間・年度末お知らせ・開拓者進捗の色分けなど、時間要求に関する項目が必要な立場
+// (補助開拓者は15h/30hの短期キャンペーンで年間・月間の要求時間という概念が無いため対象外)
+export const PIONEER_TARGET_STATUSES = ['正規開拓者', '特別開拓者', '野外の宣教者'] as const
+
 export const STAFF_ROLES = ['admin', 'overseer'] as const
 export type StaffRole = (typeof STAFF_ROLES)[number]
 
@@ -41,9 +45,12 @@ export interface Publisher {
   pioneer_started_on: string | null
   qualification: Qualification | null
   pioneer_status: PioneerStatus
-  // 開拓者の年間時間目標(例: 正規開拓者600h)。Excelの`開拓者進捗`シートの「要求時間」列に相当し、
+  // 開拓者の年間要求時間(例: 正規開拓者600h)。Excelの`開拓者進捗`シートの「要求時間」列に相当し、
   // 立場から自動算出せず個別に設定できるようにしている(Excel側も行ごとの固定値だったため踏襲)。
   annual_hour_target: number | null
+  // 月間要求時間。年間要求時間を単純に12等分した値とは限らない(端数調整など)ため、別項目として持つ。
+  // 開拓者進捗ページの色分け判定に使う。
+  monthly_hour_target: number | null
   is_active: boolean
   auth_user_id: string | null
   created_at: string

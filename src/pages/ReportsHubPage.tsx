@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
-import type { Publisher } from '../types/domain'
+import { PIONEER_TARGET_STATUSES, type Publisher } from '../types/domain'
 import { currentServiceYear } from '../lib/serviceYear'
 import { usePersistedState, useSessionPersistedState } from '../lib/usePersistedState'
 import { SUMMARY_PATTERNS, type SummaryPattern } from '../lib/printData'
@@ -44,6 +44,10 @@ export function ReportsHubPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const selectedPublisher = publishers.find((p) => p.id === publisherId)
+  const needsYearEndNotice =
+    !!selectedPublisher && PIONEER_TARGET_STATUSES.includes(selectedPublisher.pioneer_status as (typeof PIONEER_TARGET_STATUSES)[number])
+
   return (
     <div className="page">
       <div className="page-header">
@@ -83,13 +87,15 @@ export function ReportsHubPage() {
             <span className="reports-hint">伝道者を選択してください</span>
           )}
         </li>
-        <li>
-          {publisherId ? (
-            <Link to={`/print/year-end-notice/${publisherId}/${year}`}>年度末お知らせを印刷</Link>
-          ) : (
-            <span className="reports-hint">伝道者を選択してください</span>
-          )}
-        </li>
+        {(!selectedPublisher || needsYearEndNotice) && (
+          <li>
+            {publisherId ? (
+              <Link to={`/print/year-end-notice/${publisherId}/${year}`}>年度末お知らせを印刷</Link>
+            ) : (
+              <span className="reports-hint">伝道者を選択してください</span>
+            )}
+          </li>
+        )}
       </ul>
 
       <h2 style={{ fontSize: 15, marginTop: 24, marginBottom: 8 }}>会衆の帳票</h2>
