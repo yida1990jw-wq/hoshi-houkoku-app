@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import type { Group, Publisher, ServiceReport } from '../types/domain'
+import { ROSTER_STATUS_ORDER, type Group, type Publisher, type ServiceReport } from '../types/domain'
 import { currentMonth, currentServiceYear } from '../lib/serviceYear'
 import { useSessionPersistedState } from '../lib/usePersistedState'
 
@@ -43,11 +43,16 @@ export function SubmissionStatusPage() {
   )
 
   const byGroup = useMemo(() => {
+    // グループ内は伝道者→正規開拓者→特別開拓者→野外の宣教者(→補助開拓者→不活発者)の順、各々の中はローマ字順
+    const byRosterOrder = (a: Publisher, b: Publisher) => {
+      const statusDiff = ROSTER_STATUS_ORDER.indexOf(a.pioneer_status) - ROSTER_STATUS_ORDER.indexOf(b.pioneer_status)
+      return statusDiff !== 0 ? statusDiff : (a.romaji ?? '').localeCompare(b.romaji ?? '')
+    }
     const groupsWithNone = [...groups, { id: '__none__', name: '未設定' } as Group]
     return groupsWithNone
       .map((g) => ({
         group: g,
-        publishers: publishers.filter((p) => (p.group_id ?? '__none__') === g.id),
+        publishers: publishers.filter((p) => (p.group_id ?? '__none__') === g.id).sort(byRosterOrder),
       }))
       .filter((g) => g.publishers.length > 0)
   }, [groups, publishers])
