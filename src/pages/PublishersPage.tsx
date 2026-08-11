@@ -331,6 +331,11 @@ export function PublishersPage() {
   const [pasteText, setPasteText] = useState('')
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<{ added: number; warnings: string[] } | null>(null)
+  const [bulkStatus, setBulkStatus] = useState<(typeof PIONEER_TARGET_STATUSES)[number]>(PIONEER_TARGET_STATUSES[0])
+  const [bulkAnnual, setBulkAnnual] = useState('')
+  const [bulkMonthly, setBulkMonthly] = useState('')
+  const [bulkApplying, setBulkApplying] = useState(false)
+  const [bulkResult, setBulkResult] = useState<string | null>(null)
 
   async function refetch() {
     const [{ data: pubData, error: pubError }, { data: groupData, error: groupError }] = await Promise.all([
@@ -555,6 +560,39 @@ export function PublishersPage() {
     }
   }
 
+  async function handleBulkTargetApply() {
+    const annual = bulkAnnual.trim() === '' ? null : Number(bulkAnnual)
+    const monthly = bulkMonthly.trim() === '' ? null : Number(bulkMonthly)
+    const targetCount = publishers.filter((p) => p.pioneer_status === bulkStatus && p.is_active).length
+    if (targetCount === 0) {
+      setError(`在籍中の「${bulkStatus}」が見つかりませんでした`)
+      return
+    }
+    if (
+      !window.confirm(
+        `在籍中の「${bulkStatus}」全員(${targetCount}名)の年間要求時間・月間要求時間を上書きします。個別に調整している人の値も上書きされます。よろしいですか?`,
+      )
+    )
+      return
+    setBulkApplying(true)
+    setError(null)
+    setBulkResult(null)
+    try {
+      const { error } = await supabase
+        .from('publishers')
+        .update({ annual_hour_target: annual, monthly_hour_target: monthly })
+        .eq('pioneer_status', bulkStatus)
+        .eq('is_active', true)
+      if (error) throw error
+      await refetch()
+      setBulkResult(`「${bulkStatus}」${targetCount}名に適用しました。`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '一括設定に失敗しました')
+    } finally {
+      setBulkApplying(false)
+    }
+  }
+
   if (loading) return <div className="center-message">読み込み中...</div>
 
   return (
@@ -601,6 +639,39 @@ export function PublishersPage() {
               )}
             </div>
           )}
+        </details>
+      )}
+
+      {isAdmin && (
+        <details className="paste-import">
+          <summary>年間・月間要求時間を立場ごとに一括設定する</summary>
+          <p className="paste-import-hint">
+            選んだ立場の在籍者全員に、同じ年間要求時間・月間要求時間をまとめて設定します。個別に調整したい人は、この後で1人ずつ編集してください（一括設定を再度行うと、個別調整した値も上書きされます）。
+          </p>
+          <div className="publisher-form-grid">
+            <label>
+              立場
+              <select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value as (typeof PIONEER_TARGET_STATUSES)[number])}>
+                {PIONEER_TARGET_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              年間要求時間(h)
+              <input type="number" value={bulkAnnual} onChange={(e) => setBulkAnnual(e.target.value)} />
+            </label>
+            <label>
+              月間要求時間(h)
+              <input type="number" value={bulkMonthly} onChange={(e) => setBulkMonthly(e.target.value)} />
+            </label>
+          </div>
+          <button type="button" onClick={handleBulkTargetApply} disabled={bulkApplying}>
+            {bulkApplying ? '適用中...' : '一括適用する'}
+          </button>
+          {bulkResult && <p className="paste-import-result">{bulkResult}</p>}
         </details>
       )}
 
