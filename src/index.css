@@ -92,6 +92,13 @@ input {
   background: var(--surface);
 }
 
+.app-footer {
+  padding: 8px 20px;
+  font-size: 12px;
+  color: var(--text-h);
+  text-align: right;
+}
+
 .app-nav {
   display: flex;
   flex-wrap: wrap;

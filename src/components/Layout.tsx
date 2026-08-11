@@ -36,6 +36,9 @@ export function Layout({ children }: { children: ReactNode }) {
         </button>
       </header>
       <main>{children}</main>
+      <footer className="app-footer">
+        バージョン: {__APP_BUILD_TIME__.slice(0, 10)} ({__APP_VERSION__})
+      </footer>
     </div>
   )
 }
