@@ -498,7 +498,7 @@ export function ReportsListPage() {
         </details>
       )}
       {error && <p className="error-text">{error}</p>}
-      <table className="crud-table crud-table--sticky-header">
+      <table className="crud-table crud-table--sticky-header crud-table--zebra">
         <thead>
           <tr>
             <th>氏名</th>

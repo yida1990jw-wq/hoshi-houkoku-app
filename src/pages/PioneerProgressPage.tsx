@@ -132,7 +132,7 @@ export function PioneerProgressPage() {
         </label>
       </div>
       {error && <p className="error-text">{error}</p>}
-      <div style={{ overflowX: 'auto' }}>
+      <div className="table-scroll-y">
         <table className="crud-table crud-table--sticky-header crud-table--zebra">
           <thead>
             <tr>

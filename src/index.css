@@ -9,6 +9,7 @@
   --accent-contrast: #fff;
   --danger: #c0362c;
   --row-alt: rgba(0, 0, 0, 0.035);
+  --th-bg: #f3efff;
   --sans: system-ui, 'Segoe UI', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
 
   font: 16px/1.55 var(--sans);
@@ -31,6 +32,7 @@
     --accent-bg: rgba(163, 137, 255, 0.15);
     --accent-contrast: #17171b;
     --row-alt: rgba(255, 255, 255, 0.045);
+    --th-bg: #332f46;
   }
 }
 
@@ -156,7 +158,7 @@ input {
 }
 
 .crud-table th {
-  background: var(--accent-bg);
+  background: var(--th-bg);
   color: var(--text-h);
   font-weight: 600;
 }
@@ -170,6 +172,20 @@ input {
   position: sticky;
   top: 0;
   z-index: 1;
+}
+
+/* 横スクロールが必要な幅広の表(開拓者進捗など)は、このラッパー自体を縦にも
+   スクロールする箱にしないと、内側のposition:stickyがページ全体のスクロール
+   に対して機能しない(overflow-xを指定した時点でoverflow-yも暗黙にautoになり、
+   固定の高さが無いと見た目上スクロールしないコンテナになってしまうため) */
+.table-scroll-y {
+  overflow: auto;
+  max-height: 75vh;
+  border-radius: 10px;
+}
+
+.table-scroll-y .crud-table {
+  border-radius: 0;
 }
 
 /* 偶数行に薄い背景を付けて横方向に目を追いやすくする(縞模様) */

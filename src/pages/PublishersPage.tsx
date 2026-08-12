@@ -732,7 +732,7 @@ export function PublishersPage() {
           </select>
         </label>
       </div>
-      <table className="crud-table crud-table--sticky-header roster-table">
+      <table className="crud-table crud-table--sticky-header crud-table--zebra roster-table">
         <thead>
           <tr>
             <th>姓</th>
