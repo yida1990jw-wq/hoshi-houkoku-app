@@ -12,7 +12,6 @@ import { ReportsHubPage } from './pages/ReportsHubPage'
 import { StaffPage } from './pages/StaffPage'
 import { SetPasswordPage } from './pages/SetPasswordPage'
 import { PublicReportPage } from './pages/PublicReportPage'
-import { YearEndNoticePrintPage } from './pages/print/YearEndNoticePrintPage'
 
 // pdf-lib/fontkit(数百KB)を使うため、印刷時にだけ読み込むよう分離する
 const PublisherCardPrintPage = lazy(() =>
@@ -20,6 +19,9 @@ const PublisherCardPrintPage = lazy(() =>
 )
 const CongregationSummaryPrintPage = lazy(() =>
   import('./pages/print/CongregationSummaryPrintPage').then((m) => ({ default: m.CongregationSummaryPrintPage })),
+)
+const YearEndNoticePrintPage = lazy(() =>
+  import('./pages/print/YearEndNoticePrintPage').then((m) => ({ default: m.YearEndNoticePrintPage })),
 )
 
 function LoginRoute() {
@@ -41,7 +43,14 @@ function AdminArea() {
             </Suspense>
           }
         />
-        <Route path="/print/year-end-notice/:publisherId/:year" element={<YearEndNoticePrintPage />} />
+        <Route
+          path="/print/year-end-notice/:publisherId/:year"
+          element={
+            <Suspense fallback={<div className="center-message">読み込み中...</div>}>
+              <YearEndNoticePrintPage />
+            </Suspense>
+          }
+        />
         <Route
           path="/print/congregation-summary/:year/:pattern"
           element={

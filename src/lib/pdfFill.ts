@@ -1,6 +1,12 @@
 import { PDFDocument, TextAlignment, type PDFFont, type PDFForm, type PDFPage } from 'pdf-lib'
 import fontkit from '@pdf-lib/fontkit'
-import type { CongregationSummaryCardData, PublisherCardData, PublisherCardYearBlock, SummaryCardYearBlock } from './printData'
+import type {
+  CongregationSummaryCardData,
+  PublisherCardData,
+  PublisherCardYearBlock,
+  PublisherYearData,
+  SummaryCardYearBlock,
+} from './printData'
 import { formatJapaneseDate, formatShortQualDate, formatShortYearMonth, yearsSince } from './dateFormat'
 
 // 「S-21 会衆の伝道者記録.pdf」(ユーザー作成のフィールド入り版)のフィールド名対応表。
@@ -57,13 +63,14 @@ const MONTH_FONT_SIZE = 11 // 「9月」等の月表示と同じ
 
 interface TextOptions {
   fontSize?: number
-  align?: 'left' | 'center'
+  align?: 'left' | 'center' | 'right'
 }
 
 function setText(form: PDFForm, name: string, value: string, options: TextOptions = {}) {
   const field = form.getTextField(name)
   field.setFontSize(options.fontSize ?? DEFAULT_FONT_SIZE)
   if (options.align === 'center') field.setAlignment(TextAlignment.Center)
+  if (options.align === 'right') field.setAlignment(TextAlignment.Right)
   field.setText(value)
 }
 
@@ -143,9 +150,9 @@ function fillTable(
   }
 }
 
-async function loadTemplate() {
+async function loadTemplate(formFile = 's21-form.pdf') {
   const [templateBytes, fontBytes] = await Promise.all([
-    fetch(`${import.meta.env.BASE_URL}forms/s21-form.pdf`).then((r) => r.arrayBuffer()),
+    fetch(`${import.meta.env.BASE_URL}forms/${formFile}`).then((r) => r.arrayBuffer()),
     fetch(`${import.meta.env.BASE_URL}fonts/NotoSansJP-Regular.ttf`).then((r) => r.arrayBuffer()),
   ])
   const pdfDoc = await PDFDocument.load(templateBytes)
@@ -256,5 +263,170 @@ export async function fillCongregationSummaryCardPdf(data: CongregationSummaryCa
 
   form.updateFieldAppearances(japaneseFont)
   form.flatten()
+  return pdfDoc.save()
+}
+
+// 「年度末お知らせ用紙.pdf」(ユーザー作成のフィールド入り版)のフィールド名対応表。
+// PDFのアノテーション座標を解析して特定した
+const YEAR_END_YEAR_FIELD = 'Text 1'
+const YEAR_END_NAME_FIELD = 'Text 3'
+const YEAR_END_MONTH_FIELDS = [
+  'Text 10',
+  'Text 11',
+  'Text 12',
+  'Text 13',
+  'Text 14',
+  'Text 15',
+  'Text 22',
+  'Text 23',
+  'Text 24',
+  'Text 25',
+  'Text 26',
+  'Text 27',
+]
+const YEAR_END_CONSIDERED_FIELD = 'Text 29'
+const YEAR_END_TOTAL_HOURS_FIELD = 'Text 31'
+const YEAR_END_ACHIEVED_FIELD = 'Text 33'
+const YEAR_END_REMAINING_TOTAL_FIELD = 'Text 35'
+const YEAR_END_REMAINING_PER_MONTH_FIELD = 'Text 36'
+
+const YEAR_END_MONTH_FONT_SIZE = 18
+const YEAR_END_LABEL_FONT_SIZE = 14
+// 差し込むデータ全体を、枠の中央よりやや上に見せるための共通オフセット
+const YEAR_END_SHIFT_UP = 5
+
+function shiftFieldUp(form: PDFForm, name: string, offset: number) {
+  const field = form.getTextField(name)
+  for (const widget of field.acroField.getWidgets()) {
+    const rect = widget.getRectangle()
+    widget.setRectangle({ x: rect.x, y: rect.y + offset, width: rect.width, height: rect.height })
+  }
+}
+
+// 「要求時間［600］時間まで　残り［1］ヶ月で」の数字部分は、フォームフィールドではなく
+// 固定文言の間の空白部分に直接描画する(PDF側にフィールドが用意されていないため)。
+// 座標はPyMuPDFで実測した固定文言の位置(PDFページ座標系、原点は左下)
+const YEAR_END_TARGET_GAP = { x0: 214, x1: 263, yTop: 638, yBottom: 655 }
+const YEAR_END_REMAINING_MONTHS_GAP = { x0: 373, x1: 394, yTop: 638, yBottom: 655 }
+// 「奉仕年度」ラベルの直前に年度の数字を入れる。フィールド(Text 1)の箱の高さに
+// 合わせて自動配置すると、フィールドとラベルとで基準にする行の高さが違うために
+// 縦位置がずれて見えたため、ラベル自体の実測位置に合わせて直接描画する
+const YEAR_END_TITLE_LABEL = { yTop: 119, yBottom: 138, labelStartX: 137 }
+
+function drawCenteredInGap(
+  page: PDFPage,
+  font: PDFFont,
+  text: string,
+  gap: { x0: number; x1: number; yTop: number; yBottom: number },
+  pageHeight: number,
+  fontSize: number,
+) {
+  const textWidth = font.widthOfTextAtSize(text, fontSize)
+  const gapWidth = gap.x1 - gap.x0
+  const x = gap.x0 + Math.max(0, (gapWidth - textWidth) / 2)
+  const boxHeight = gap.yBottom - gap.yTop
+  const fontHeight = font.heightAtSize(fontSize, { descender: false })
+  const y = pageHeight - gap.yBottom + (boxHeight / 2 - fontHeight / 2) + YEAR_END_SHIFT_UP
+  page.drawText(text, { x, y, size: fontSize, font })
+}
+
+// 右端(rightEdgeX)に接するように右揃えで、指定した行の高さ(yTop〜yBottom)に
+// 縦中央揃えでテキストを描画する
+function drawRightAlignedBeforeX(
+  page: PDFPage,
+  font: PDFFont,
+  text: string,
+  rightEdgeX: number,
+  yTop: number,
+  yBottom: number,
+  pageHeight: number,
+  fontSize: number,
+  gap = 6,
+) {
+  const textWidth = font.widthOfTextAtSize(text, fontSize)
+  const x = rightEdgeX - gap - textWidth
+  const boxHeight = yBottom - yTop
+  const fontHeight = font.heightAtSize(fontSize, { descender: false })
+  const y = pageHeight - yBottom + (boxHeight / 2 - fontHeight / 2) + YEAR_END_SHIFT_UP
+  page.drawText(text, { x, y, size: fontSize, font })
+}
+
+// 年度末お知らせ。伝道者記録と違い、対象は開拓者本人の要求時間に対する進捗確認用の
+// 簡易な帳票で、月ごとの奉仕時間・考慮時間・達成時間・要求時間までの残りだけを表示する
+export async function fillYearEndNoticePdf(data: PublisherYearData): Promise<Uint8Array> {
+  const { pdfDoc, japaneseFont, form } = await loadTemplate('year-end-notice-form.pdf')
+
+  const { publisher, year, months } = data
+  const totalHours = months.reduce((sum, m) => sum + (m.report?.hours ?? 0), 0)
+  const consideredHours = months.reduce((sum, m) => sum + (m.report?.considered_hours ?? 0), 0)
+  const achieved = totalHours + consideredHours
+  const target = publisher.annual_hour_target ?? 0
+  const reportedMonths = months.filter((m) => m.report !== null).length
+  const remainingMonths = months.length - reportedMonths
+
+  // 年度の数字はフィールド(Text 1)の箱ではなく「奉仕年度」ラベルの実測位置に合わせて
+  // 直接描画するため(理由は下のdrawRightAlignedBeforeXの呼び出し箇所を参照)、
+  // フィールド自体は空のままにしておく
+  setText(form, YEAR_END_YEAR_FIELD, '')
+  setText(form, YEAR_END_NAME_FIELD, `${publisher.last_name} ${publisher.first_name}`, {
+    fontSize: YEAR_END_LABEL_FONT_SIZE,
+    align: 'center',
+  })
+
+  months.forEach((m, i) => {
+    setText(form, YEAR_END_MONTH_FIELDS[i], m.report ? String(m.report.hours) : '', {
+      fontSize: YEAR_END_MONTH_FONT_SIZE,
+      align: 'center',
+    })
+  })
+
+  setText(form, YEAR_END_CONSIDERED_FIELD, String(consideredHours), { fontSize: YEAR_END_MONTH_FONT_SIZE, align: 'center' })
+  setText(form, YEAR_END_TOTAL_HOURS_FIELD, String(totalHours), { fontSize: YEAR_END_MONTH_FONT_SIZE, align: 'center' })
+  setText(form, YEAR_END_ACHIEVED_FIELD, String(achieved), { fontSize: YEAR_END_MONTH_FONT_SIZE, align: 'center' })
+
+  if (target > 0) {
+    const remainingTotal = target - achieved
+    setText(form, YEAR_END_REMAINING_TOTAL_FIELD, `${remainingTotal} 時間`, { fontSize: YEAR_END_MONTH_FONT_SIZE, align: 'center' })
+    if (remainingMonths > 0) {
+      const remainingPerMonth = remainingTotal / remainingMonths
+      setText(form, YEAR_END_REMAINING_PER_MONTH_FIELD, `${remainingPerMonth.toFixed(1)} 時間/月`, {
+        fontSize: YEAR_END_MONTH_FONT_SIZE,
+        align: 'center',
+      })
+    }
+  }
+
+  // 差し込んだ値を枠の中央よりやや上に見せるため、対象フィールドをまとめて上へずらす
+  const shiftedFields = [
+    YEAR_END_NAME_FIELD,
+    ...YEAR_END_MONTH_FIELDS,
+    YEAR_END_CONSIDERED_FIELD,
+    YEAR_END_TOTAL_HOURS_FIELD,
+    YEAR_END_ACHIEVED_FIELD,
+    YEAR_END_REMAINING_TOTAL_FIELD,
+    YEAR_END_REMAINING_PER_MONTH_FIELD,
+  ]
+  shiftedFields.forEach((name) => shiftFieldUp(form, name, YEAR_END_SHIFT_UP))
+
+  form.updateFieldAppearances(japaneseFont)
+  form.flatten()
+
+  const page = pdfDoc.getPage(0)
+  const pageHeight = page.getHeight()
+  drawRightAlignedBeforeX(
+    page,
+    japaneseFont,
+    String(year),
+    YEAR_END_TITLE_LABEL.labelStartX,
+    YEAR_END_TITLE_LABEL.yTop,
+    YEAR_END_TITLE_LABEL.yBottom,
+    pageHeight,
+    YEAR_END_MONTH_FONT_SIZE,
+  )
+  if (target > 0) {
+    drawCenteredInGap(page, japaneseFont, String(target), YEAR_END_TARGET_GAP, pageHeight, YEAR_END_MONTH_FONT_SIZE)
+  }
+  drawCenteredInGap(page, japaneseFont, String(remainingMonths), YEAR_END_REMAINING_MONTHS_GAP, pageHeight, YEAR_END_MONTH_FONT_SIZE)
+
   return pdfDoc.save()
 }
