@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { computeReportPeriod } from '../lib/reportPeriod'
 import { CONSIDERATION_REASONS, capConsideredHours, composeRemarks, type ConsiderationReason } from '../lib/reportRules'
-import { PIONEER_TARGET_STATUSES, ROSTER_STATUS_ORDER, type PublicPublisher } from '../types/domain'
+import { PIONEER_TARGET_STATUSES, type PublicPublisherMatch } from '../types/domain'
 
-type Step = 'select' | 'notice' | 'form' | 'done'
+type Step = 'name' | 'confirm' | 'notice' | 'form' | 'done'
 
 type AuxChoice = 'none' | '15' | '30'
 
@@ -50,12 +50,12 @@ function AuxChoiceButtons({ value, onChange }: { value: AuxChoice | null; onChan
 }
 
 export function PublicReportPage() {
-  const [publishers, setPublishers] = useState<PublicPublisher[]>([])
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const [step, setStep] = useState<Step>('name')
+  const [nameInput, setNameInput] = useState('')
+  const [matching, setMatching] = useState(false)
+  const [matchError, setMatchError] = useState<string | null>(null)
+  const [candidate, setCandidate] = useState<PublicPublisherMatch | null>(null)
 
-  const [step, setStep] = useState<Step>('select')
-  const [publisherId, setPublisherId] = useState('')
   const [form, setForm] = useState(EMPTY_FORM)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -65,38 +65,20 @@ export function PublicReportPage() {
 
   const period = useMemo(() => computeReportPeriod(), [])
 
-  useEffect(() => {
-    Promise.resolve(supabase.from('public_publisher_roster').select('*').returns<PublicPublisher[]>())
-      .then(({ data, error }) => {
-        if (error) throw error
-        const sorted = [...(data ?? [])].sort((a, b) => {
-          const statusDiff = ROSTER_STATUS_ORDER.indexOf(a.pioneer_status) - ROSTER_STATUS_ORDER.indexOf(b.pioneer_status)
-          return statusDiff !== 0 ? statusDiff : (a.romaji ?? '').localeCompare(b.romaji ?? '')
-        })
-        setPublishers(sorted)
-      })
-      .catch((e) => setLoadError(e instanceof Error ? e.message : '名簿の読み込みに失敗しました'))
-      .finally(() => setLoading(false))
-  }, [])
-
-  const publisher = publishers.find((p) => p.id === publisherId)
+  const publisher = candidate
   const isPublisherStatus = publisher?.pioneer_status === '伝道者'
   // 伝道者でもその月に補助開拓(15h/30h)を行った場合は時間の報告が必要
   const needsHours = !isPublisherStatus || form.auxChoice === '15' || form.auxChoice === '30'
   const isPioneerTarget =
     !!publisher && PIONEER_TARGET_STATUSES.includes(publisher.pioneer_status as (typeof PIONEER_TARGET_STATUSES)[number])
 
-  async function handleSelectPublisher(id: string) {
-    setPublisherId(id)
-    setForm(EMPTY_FORM)
-    setValidationError(null)
-    setSubmitError(null)
-    if (!id) return
+  // 本人が確定した後、対象月の報告が既にあるかを確認してnotice/formへ進む
+  async function proceedWithPublisher(p: PublicPublisherMatch) {
     setCheckingExisting(true)
-    setLoadError(null)
+    setMatchError(null)
     try {
       const { data, error } = await supabase.rpc('public_report_exists', {
-        p_publisher_id: id,
+        p_publisher_id: p.id,
         p_year: period.year,
         p_month: period.month,
       })
@@ -104,18 +86,62 @@ export function PublicReportPage() {
       setReportExists(!!data)
       setStep(data ? 'notice' : 'form')
     } catch (e) {
-      setLoadError(e instanceof Error ? e.message : '確認に失敗しました')
+      setMatchError(e instanceof Error ? e.message : '確認に失敗しました')
     } finally {
       setCheckingExisting(false)
     }
   }
 
+  async function handleLookupName() {
+    const name = nameInput.trim()
+    if (!name) {
+      setMatchError('氏名を入力してください')
+      return
+    }
+    setMatching(true)
+    setMatchError(null)
+    setForm(EMPTY_FORM)
+    setValidationError(null)
+    setSubmitError(null)
+    try {
+      const { data, error } = await supabase.rpc('public_match_publisher', { p_name: name })
+      if (error) throw error
+      const match = (data as PublicPublisherMatch[] | null)?.[0] ?? null
+      if (!match) {
+        setMatchError('名前が見つかりませんでした。表記をご確認いただくか、担当者にご連絡ください。')
+        return
+      }
+      setCandidate(match)
+      if (match.exact) {
+        await proceedWithPublisher(match)
+      } else {
+        setStep('confirm')
+      }
+    } catch (e) {
+      setMatchError(e instanceof Error ? e.message : '確認に失敗しました')
+    } finally {
+      setMatching(false)
+    }
+  }
+
+  function handleConfirmNo() {
+    setCandidate(null)
+    setMatchError(null)
+    setStep('name')
+  }
+
+  async function handleConfirmYes() {
+    if (!candidate) return
+    await proceedWithPublisher(candidate)
+  }
+
   function handleCancelNotice() {
-    setPublisherId('')
+    setCandidate(null)
+    setNameInput('')
     setReportExists(false)
     setValidationError(null)
     setSubmitError(null)
-    setStep('select')
+    setStep('name')
   }
 
   function handleContinueFromNotice() {
@@ -126,12 +152,14 @@ export function PublicReportPage() {
   }
 
   function handleRestart() {
-    setPublisherId('')
+    setCandidate(null)
+    setNameInput('')
     setReportExists(false)
     setForm(EMPTY_FORM)
     setValidationError(null)
     setSubmitError(null)
-    setStep('select')
+    setMatchError(null)
+    setStep('name')
   }
 
   function toggleReason(reason: ConsiderationReason) {
@@ -267,8 +295,6 @@ export function PublicReportPage() {
     })
   }
 
-  if (loading) return <div className="center-message">読み込み中...</div>
-
   return (
     <div className="login-page login-page-top">
       <div className="login-form" style={{ maxWidth: 480 }}>
@@ -276,20 +302,50 @@ export function PublicReportPage() {
         <p className="reports-hint">
           対象月: {period.year}年度{period.month}月
         </p>
-        {loadError && <p className="error-text">{loadError}</p>}
 
-        {step === 'select' && (
-          <label>
-            氏名
-            <select value={publisherId} onChange={(e) => handleSelectPublisher(e.target.value)} disabled={checkingExisting}>
-              <option value="">選択してください</option>
-              {publishers.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.last_name} {p.first_name}
-                </option>
-              ))}
-            </select>
-          </label>
+        {step === 'name' && (
+          <div>
+            <label>
+              氏名
+              <input
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleLookupName()
+                }}
+                placeholder="姓名を入力してください"
+                disabled={matching || checkingExisting}
+              />
+            </label>
+            {matchError && <p className="error-text">{matchError}</p>}
+            <div className="publisher-form-actions">
+              <button type="button" onClick={handleLookupName} disabled={matching || checkingExisting}>
+                {matching || checkingExisting ? '確認中...' : '次へ'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'confirm' && candidate && (
+          <div>
+            <p>
+              「{nameInput}」で検索しましたが、表記が一致しませんでした。
+              <br />
+              <span className="pr-greeting">
+                {candidate.last_name} {candidate.first_name}
+              </span>
+              さんのお名前でお間違いないですか?
+            </p>
+            {matchError && <p className="error-text">{matchError}</p>}
+            <div className="publisher-form-actions">
+              <button type="button" onClick={handleConfirmYes} disabled={checkingExisting}>
+                {checkingExisting ? '確認中...' : 'はい、私です'}
+              </button>
+              <button type="button" onClick={handleConfirmNo} disabled={checkingExisting}>
+                いいえ、違います
+              </button>
+            </div>
+          </div>
         )}
 
         {step === 'notice' && publisher && (

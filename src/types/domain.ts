@@ -84,14 +84,15 @@ export interface Staff {
   email: string | null
 }
 
-// 公開報告フォーム(未ログイン)向けのビュー public_publisher_roster に対応する、
-// 個人情報を含まない最小限の型
-export interface PublicPublisher {
+// 公開報告フォーム(未ログイン)向けのRPC public_match_publisher の返り値に対応する、
+// 個人情報を含まない最小限の型。氏名は入力された1人分のみを都度返し、
+// 一覧をまるごとは返さない(会衆全員の氏名を未ログインの相手に晒さないため)
+export interface PublicPublisherMatch {
   id: string
   last_name: string
   first_name: string
-  romaji: string | null
   pioneer_status: PioneerStatus
   group_id: string | null
   monthly_hour_target: number | null
+  exact: boolean
 }
