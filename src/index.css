@@ -8,6 +8,7 @@
   --accent-bg: rgba(107, 59, 255, 0.08);
   --accent-contrast: #fff;
   --danger: #c0362c;
+  --row-alt: rgba(0, 0, 0, 0.035);
   --sans: system-ui, 'Segoe UI', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
 
   font: 16px/1.55 var(--sans);
@@ -29,6 +30,7 @@
     --accent: #a389ff;
     --accent-bg: rgba(163, 137, 255, 0.15);
     --accent-contrast: #17171b;
+    --row-alt: rgba(255, 255, 255, 0.045);
   }
 }
 
@@ -161,6 +163,53 @@ input {
 
 .crud-table tr:last-child td {
   border-bottom: none;
+}
+
+/* スクロール中も見出し行を画面上部に固定表示する(長い一覧向け) */
+.crud-table--sticky-header thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+/* 偶数行に薄い背景を付けて横方向に目を追いやすくする(縞模様) */
+.crud-table--zebra tbody tr:nth-child(even) td {
+  background: var(--row-alt);
+}
+
+/* 名簿: 姓・名を広めに、他の列は折り返さない範囲で狭める */
+.roster-table {
+  table-layout: fixed;
+}
+
+.roster-table th:nth-child(1),
+.roster-table td:nth-child(1) {
+  width: 19%;
+}
+
+.roster-table th:nth-child(2),
+.roster-table td:nth-child(2) {
+  width: 19%;
+}
+
+.roster-table th:nth-child(3),
+.roster-table td:nth-child(3) {
+  width: 13%;
+}
+
+.roster-table th:nth-child(4),
+.roster-table td:nth-child(4) {
+  width: 13%;
+}
+
+.roster-table th:nth-child(5),
+.roster-table td:nth-child(5) {
+  width: 17%;
+}
+
+.roster-table th:nth-child(6),
+.roster-table td:nth-child(6) {
+  width: 9%;
 }
 
 .month-summary-table {
@@ -420,6 +469,24 @@ input {
   font-weight: 600;
 }
 
+/* ---- 公開報告フォームの見出し(挨拶文・設問見出し)と説明文 ---- */
+
+.pr-greeting {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-h);
+}
+
+.pr-question {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-h);
+}
+
+.pr-hint {
+  margin-left: 1em;
+}
+
 /* ---- 公開報告フォームのはい/いいえボタン ---- */
 
 .yes-no-field {
@@ -544,6 +611,28 @@ input {
   margin: 4px 0 0;
   padding-left: 18px;
   color: var(--danger);
+}
+
+/* ---- submission status groups (4グループ横並び) ---- */
+
+.submission-status-groups {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px 28px;
+}
+
+.submission-status-group {
+  flex: 0 0 auto;
+}
+
+.submission-status-group table {
+  width: auto;
+}
+
+.submission-status-group th,
+.submission-status-group td {
+  white-space: nowrap;
 }
 
 /* ---- status badges (submission status page) ---- */

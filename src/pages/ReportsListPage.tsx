@@ -498,7 +498,7 @@ export function ReportsListPage() {
         </details>
       )}
       {error && <p className="error-text">{error}</p>}
-      <table className="crud-table">
+      <table className="crud-table crud-table--sticky-header">
         <thead>
           <tr>
             <th>氏名</th>
@@ -556,8 +556,8 @@ export function ReportsListPage() {
                 <td>{publisherName(r.publisher_id)}</td>
                 <td>{r.preached ? '✓' : ''}</td>
                 <td>{r.bible_studies}</td>
-                <td>{r.hours}</td>
-                <td>{r.considered_hours}</td>
+                <td>{r.hours || ''}</td>
+                <td>{r.considered_hours || ''}</td>
                 <td>{r.remarks ?? ''}</td>
                 <td>{r.pioneer_status_snapshot}</td>
                 <td>{r.no_count ? 'NC' : ''}</td>

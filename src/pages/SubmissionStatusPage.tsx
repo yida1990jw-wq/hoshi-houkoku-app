@@ -92,37 +92,37 @@ export function SubmissionStatusPage() {
         </span>
       </div>
       {error && <p className="error-text">{error}</p>}
-      {byGroup.map(({ group, publishers: groupPublishers }) => (
-        <div key={group.id} style={{ marginBottom: 20 }}>
-          <h2 style={{ fontSize: 15, marginBottom: 8 }}>
-            {group.name} ({groupPublishers.filter((p) => submittedIds.has(p.id)).length}/{groupPublishers.length})
-          </h2>
-          <table className="crud-table">
-            <thead>
-              <tr>
-                <th>氏名</th>
-                <th>立場</th>
-                <th>状況</th>
-              </tr>
-            </thead>
-            <tbody>
-              {groupPublishers.map((p) => (
-                <tr key={p.id}>
-                  <td>
-                    {p.last_name} {p.first_name}
-                  </td>
-                  <td>{p.pioneer_status}</td>
-                  <td>
-                    <span className={`status-badge ${submittedIds.has(p.id) ? 'submitted' : 'pending'}`}>
-                      {submittedIds.has(p.id) ? '提出済み' : '未提出'}
-                    </span>
-                  </td>
+      <div className="submission-status-groups">
+        {byGroup.map(({ group, publishers: groupPublishers }) => (
+          <div key={group.id} className="submission-status-group">
+            <h2 style={{ fontSize: 15, marginBottom: 8 }}>
+              {group.name} ({groupPublishers.filter((p) => submittedIds.has(p.id)).length}/{groupPublishers.length})
+            </h2>
+            <table className="crud-table">
+              <thead>
+                <tr>
+                  <th>氏名</th>
+                  <th>状況</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ))}
+              </thead>
+              <tbody>
+                {groupPublishers.map((p) => (
+                  <tr key={p.id}>
+                    <td>
+                      {p.last_name} {p.first_name}
+                    </td>
+                    <td>
+                      <span className={`status-badge ${submittedIds.has(p.id) ? 'submitted' : 'pending'}`}>
+                        {submittedIds.has(p.id) ? '提出済み' : '未提出'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

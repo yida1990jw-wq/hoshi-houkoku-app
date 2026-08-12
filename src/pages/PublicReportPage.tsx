@@ -311,39 +311,39 @@ export function PublicReportPage() {
 
         {step === 'form' && publisher && (
           <div>
-            <p>
+            <p className="pr-greeting">
               {publisher.last_name} {publisher.first_name}さんの{period.year}年度{period.month}月分の報告
             </p>
             <div className="yes-no-field">
-              <span>1ヵ月間に何らかの形で伝道に参加しましたか</span>
+              <span className="pr-question">1ヵ月間に何らかの形で伝道に参加しましたか</span>
               <YesNoButtons value={form.preached} onChange={(v) => setForm((f) => ({ ...f, preached: v }))} />
             </div>
 
             {form.preached !== false && (
               <>
                 <label>
-                  研究
+                  <span className="pr-question">研究</span>
                   <input
                     type="number"
                     min="0"
                     value={form.bibleStudies}
                     onChange={(e) => setForm((f) => ({ ...f, bibleStudies: e.target.value }))}
                   />
-                  <span className="reports-hint">司会した個別の聖書研究の数(回数ではなく件数)</span>
+                  <span className="reports-hint pr-hint">司会した個別の聖書研究の数(回数ではなく件数)</span>
                 </label>
 
                 {isPublisherStatus && (
                   <div className="yes-no-field">
-                    <span>補助開拓を行いましたか</span>
+                    <span className="pr-question">補助開拓を行いましたか</span>
                     <AuxChoiceButtons value={form.auxChoice} onChange={(v) => setForm((f) => ({ ...f, auxChoice: v }))} />
                   </div>
                 )}
 
                 {needsHours && (
                   <label>
-                    時間
+                    <span className="pr-question">時間</span>
                     <input type="number" min="0" value={form.hours} onChange={(e) => setForm((f) => ({ ...f, hours: e.target.value }))} />
-                    <span className="reports-hint">
+                    <span className="reports-hint pr-hint">
                       1時間単位での報告。端数は次月に繰り越して報告してください。実際に野外奉仕にあてた時間を報告してください。(考慮時間のある方は、その時間を足さずに報告)
                     </span>
                   </label>
@@ -352,9 +352,9 @@ export function PublicReportPage() {
                 {isPioneerTarget && (
                   <>
                     <div className="yes-no-field">
-                      <span>考慮対象の奉仕や学校に参加しましたか</span>
+                      <span className="pr-question">考慮対象の奉仕や学校に参加しましたか</span>
                       <YesNoButtons value={form.hasConsideration} onChange={(v) => setForm((f) => ({ ...f, hasConsideration: v }))} />
-                      <span className="reports-hint">大会に関連した部門奉仕や支部主催の学校など。</span>
+                      <span className="reports-hint pr-hint">大会に関連した部門奉仕や支部主催の学校など。</span>
                     </div>
 
                     {form.hasConsideration && (
@@ -369,7 +369,7 @@ export function PublicReportPage() {
                         </div>
                         {form.reasons.includes('その他') && (
                           <label>
-                            その他の内容
+                            <span className="pr-question">その他の内容</span>
                             <input
                               value={form.otherReasonText}
                               onChange={(e) => setForm((f) => ({ ...f, otherReasonText: e.target.value }))}
@@ -377,14 +377,14 @@ export function PublicReportPage() {
                           </label>
                         )}
                         <label>
-                          考慮時間
+                          <span className="pr-question">考慮時間</span>
                           <input
                             type="number"
                             min="0"
                             value={form.consideredHours}
                             onChange={(e) => setForm((f) => ({ ...f, consideredHours: e.target.value }))}
                           />
-                          <span className="reports-hint">
+                          <span className="reports-hint pr-hint">
                             1時間単位で記入ください。理由が複数ある方、それぞれの時間を合計してください。他の月に振り分けたり、繰り越したりはできません。
                           </span>
                         </label>
@@ -394,9 +394,9 @@ export function PublicReportPage() {
                 )}
 
                 <label>
-                  備考
+                  <span className="pr-question">備考</span>
                   <input value={form.remarks} onChange={(e) => setForm((f) => ({ ...f, remarks: e.target.value }))} />
-                  <span className="reports-hint">連絡事項。要求時間を満たせなかった理由など。何もなければ空欄のままでお願いします。</span>
+                  <span className="reports-hint pr-hint">連絡事項。要求時間を満たせなかった理由など。何もなければ空欄のままでお願いします。</span>
                 </label>
               </>
             )}
