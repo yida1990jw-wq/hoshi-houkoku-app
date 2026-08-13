@@ -735,8 +735,7 @@ export function PublishersPage() {
       <table className="crud-table crud-table--sticky-header crud-table--zebra roster-table">
         <thead>
           <tr>
-            <th>姓</th>
-            <th>名</th>
+            <th>氏名</th>
             <th>グループ</th>
             <th>資格</th>
             <th>立場</th>
@@ -747,7 +746,7 @@ export function PublishersPage() {
         <tbody>
           {isAdmin && editingId === NEW_ROW_ID && (
             <tr>
-              <td colSpan={7}>
+              <td colSpan={6}>
                 <div className="publisher-inline-form">
                   <h2>新規追加</h2>
                   {error && <p className="error-text">{error}</p>}
@@ -767,7 +766,7 @@ export function PublishersPage() {
           {visiblePublishers.map((p) =>
             isAdmin && editingId === p.id ? (
               <tr key={p.id}>
-                <td colSpan={7}>
+                <td colSpan={6}>
                   <div className="publisher-inline-form">
                     <h2>編集</h2>
                     {error && <p className="error-text">{error}</p>}
@@ -785,8 +784,7 @@ export function PublishersPage() {
               </tr>
             ) : (
               <tr key={p.id}>
-                <td>{p.last_name}</td>
-                <td>{p.first_name}</td>
+                <td>{p.last_name} {p.first_name}</td>
                 <td>{groupName(p.group_id)}</td>
                 <td>{p.qualification ?? ''}</td>
                 <td>{p.pioneer_status}</td>

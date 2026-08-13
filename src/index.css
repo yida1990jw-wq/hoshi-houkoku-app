@@ -200,12 +200,12 @@ input {
 
 .roster-table th:nth-child(1),
 .roster-table td:nth-child(1) {
-  width: 19%;
+  width: 36%;
 }
 
 .roster-table th:nth-child(2),
 .roster-table td:nth-child(2) {
-  width: 19%;
+  width: 13%;
 }
 
 .roster-table th:nth-child(3),
@@ -215,16 +215,11 @@ input {
 
 .roster-table th:nth-child(4),
 .roster-table td:nth-child(4) {
-  width: 13%;
+  width: 18%;
 }
 
 .roster-table th:nth-child(5),
 .roster-table td:nth-child(5) {
-  width: 17%;
-}
-
-.roster-table th:nth-child(6),
-.roster-table td:nth-child(6) {
   width: 9%;
 }
 
