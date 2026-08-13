@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { fetchPublisherYearData } from '../../lib/printData'
 import { fillYearEndNoticePdf } from '../../lib/pdfFill'
+import { PublisherSwitcher } from '../../components/PublisherSwitcher'
+import { PIONEER_TARGET_STATUSES } from '../../types/domain'
 
 export function YearEndNoticePrintPage() {
   const { publisherId, year } = useParams<{ publisherId: string; year: string }>()
@@ -45,6 +47,13 @@ export function YearEndNoticePrintPage() {
     <div className="pdf-print-page">
       <div className="print-toolbar">
         <Link to="/reports">← 戻る</Link>
+        {publisherId && year && (
+          <PublisherSwitcher
+            currentId={publisherId}
+            buildPath={(id) => `/print/year-end-notice/${id}/${year}`}
+            statuses={PIONEER_TARGET_STATUSES}
+          />
+        )}
         {pdfUrl && (
           <a href={pdfUrl} download={fileName}>
             ダウンロード

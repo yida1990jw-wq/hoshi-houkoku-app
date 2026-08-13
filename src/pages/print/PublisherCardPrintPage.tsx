@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { fetchPublisherCardData } from '../../lib/printData'
 import { fillPublisherCardPdf } from '../../lib/pdfFill'
+import { PublisherSwitcher } from '../../components/PublisherSwitcher'
 
 export function PublisherCardPrintPage() {
   const { publisherId, year } = useParams<{ publisherId: string; year: string }>()
@@ -45,6 +46,9 @@ export function PublisherCardPrintPage() {
     <div className="pdf-print-page">
       <div className="print-toolbar">
         <Link to="/reports">← 戻る</Link>
+        {publisherId && year && (
+          <PublisherSwitcher currentId={publisherId} buildPath={(id) => `/print/publisher-card/${id}/${year}`} />
+        )}
         {pdfUrl && (
           <a href={pdfUrl} download={fileName}>
             ダウンロード
