@@ -114,6 +114,25 @@ function setCheckbox(form: PDFForm, name: string, checked: boolean) {
   else box.uncheck()
 }
 
+interface PendingDraw {
+  text: string
+  rect: { x: number; y: number; width: number; height: number }
+  fontSize: number
+}
+
+// pdf-libのフィールドAPI(updateFieldAppearances)は、英数字混在の短い文字列
+// (例:「AP15」)で、まれに文字間に不要な空白が入って描画されることを実機PDFで確認した
+// (widthOfTextAtSizeの計算自体は正しいため、pdf-lib内部の複数文字レイアウト処理側の問題と
+// 見られる)。フィールドは空のままにしておき、後で1文字ずつ手動描画することで回避する
+function queueTextDraw(form: PDFForm, name: string, text: string, fontSize: number, pending: PendingDraw[]) {
+  if (text) {
+    const field = form.getTextField(name)
+    const rect = field.acroField.getWidgets()[0].getRectangle()
+    pending.push({ text, rect, fontSize })
+  }
+  setText(form, name, '')
+}
+
 function fillTable(
   form: PDFForm,
   block: PublisherCardYearBlock,
@@ -121,6 +140,8 @@ function fillTable(
   rows: MonthFieldSet[],
   totalField: string,
   remarksTotalField: string,
+  pendingRemarks: PendingDraw[],
+  showTotals = true,
 ) {
   setText(form, yearField, String(block.year), { fontSize: MONTH_FONT_SIZE, align: 'center' })
   let totalHours = 0
@@ -142,11 +163,13 @@ function fillTable(
     }
 
     totalConsidered += report?.considered_hours ?? 0
-    setText(form, fields.remarks, report?.remarks ?? '')
+    queueTextDraw(form, fields.remarks, report?.remarks ?? '', DEFAULT_FONT_SIZE, pendingRemarks)
   })
-  setText(form, totalField, String(totalHours), { fontSize: MONTH_FONT_SIZE, align: 'center' })
-  if (totalConsidered > 0) {
-    setText(form, remarksTotalField, `奉仕時間${totalHours}h+加算時間${totalConsidered}h=${totalHours + totalConsidered}時間`)
+  if (showTotals) {
+    setText(form, totalField, String(totalHours), { fontSize: MONTH_FONT_SIZE, align: 'center' })
+    if (totalConsidered > 0) {
+      setText(form, remarksTotalField, `奉仕時間${totalHours}h+加算時間${totalConsidered}h=${totalHours + totalConsidered}時間`)
+    }
   }
 }
 
@@ -166,8 +189,12 @@ async function loadTemplate(formFile = 's21-form.pdf') {
   return { pdfDoc, japaneseFont, form }
 }
 
-export async function fillPublisherCardPdf(data: PublisherCardData): Promise<Uint8Array> {
+export async function fillPublisherCardPdf(
+  data: PublisherCardData,
+  options: { showSelectedYearTotals?: boolean } = {},
+): Promise<Uint8Array> {
   const { pdfDoc, japaneseFont, form } = await loadTemplate()
+  const pendingRemarks: PendingDraw[] = []
 
   const { publisher } = data
   const furigana = `${publisher.last_name_kana ?? ''} ${publisher.first_name_kana ?? ''}`.trim()
@@ -208,8 +235,19 @@ export async function fillPublisherCardPdf(data: PublisherCardData): Promise<Uin
   setText(form, 'Text 301', publisher.pioneer_status === '特別開拓者' ? formatShortYearMonth(publisher.pioneer_started_on) : '')
   setText(form, 'Text 302', publisher.pioneer_status === '野外の宣教者' ? formatShortYearMonth(publisher.pioneer_started_on) : '')
 
-  fillTable(form, data.blocks[0], TABLE1_YEAR, TABLE1_ROWS, TABLE1_TOTAL_HOURS, TABLE1_REMARKS_TOTAL)
-  fillTable(form, data.blocks[1], TABLE2_YEAR, TABLE2_ROWS, TABLE2_TOTAL_HOURS, TABLE2_REMARKS_TOTAL)
+  // 上段(前の奉仕年度)の集計欄は常に表示。下段(選択した奉仕年度)は年度途中の
+  // 場合など、集計欄を非表示にしたいことがあるため呼び出し側から切り替えられるようにする
+  fillTable(form, data.blocks[0], TABLE1_YEAR, TABLE1_ROWS, TABLE1_TOTAL_HOURS, TABLE1_REMARKS_TOTAL, pendingRemarks)
+  fillTable(
+    form,
+    data.blocks[1],
+    TABLE2_YEAR,
+    TABLE2_ROWS,
+    TABLE2_TOTAL_HOURS,
+    TABLE2_REMARKS_TOTAL,
+    pendingRemarks,
+    options.showSelectedYearTotals ?? true,
+  )
 
   form.updateFieldAppearances(japaneseFont)
   form.flatten()
@@ -223,11 +261,21 @@ export async function fillPublisherCardPdf(data: PublisherCardData): Promise<Uin
     TITLE_FONT_SIZE,
     5,
   )
+  for (const { text, rect, fontSize } of pendingRemarks) {
+    drawNameWithTracking(page, japaneseFont, text, rect, fontSize, 0)
+  }
 
   return pdfDoc.save()
 }
 
-function fillSummaryTable(form: PDFForm, block: SummaryCardYearBlock, yearField: string, rows: MonthFieldSet[], totalField: string) {
+function fillSummaryTable(
+  form: PDFForm,
+  block: SummaryCardYearBlock,
+  yearField: string,
+  rows: MonthFieldSet[],
+  totalField: string,
+  pendingRemarks: PendingDraw[],
+) {
   setText(form, yearField, String(block.year), { fontSize: MONTH_FONT_SIZE, align: 'center' })
   let totalHours = 0
   block.months.forEach((m, i) => {
@@ -245,7 +293,7 @@ function fillSummaryTable(form: PDFForm, block: SummaryCardYearBlock, yearField:
       setText(form, fields.hours, '―', hoursOptions)
     }
 
-    setText(form, fields.remarks, m.count > 0 ? `${m.count}名` : '')
+    queueTextDraw(form, fields.remarks, m.count > 0 ? `${m.count}名` : '', DEFAULT_FONT_SIZE, pendingRemarks)
   })
   setText(form, totalField, String(totalHours), { fontSize: MONTH_FONT_SIZE, align: 'center' })
 }
@@ -255,14 +303,21 @@ function fillSummaryTable(form: PDFForm, block: SummaryCardYearBlock, yearField:
 // 使用しない(触れずデフォルトの空/未チェックのままにする)
 export async function fillCongregationSummaryCardPdf(data: CongregationSummaryCardData): Promise<Uint8Array> {
   const { pdfDoc, japaneseFont, form } = await loadTemplate()
+  const pendingRemarks: PendingDraw[] = []
 
   setText(form, 'Text 73', data.label, { fontSize: NAME_LABEL_FONT_SIZE })
 
-  fillSummaryTable(form, data.blocks[0], TABLE1_YEAR, TABLE1_ROWS, TABLE1_TOTAL_HOURS)
-  fillSummaryTable(form, data.blocks[1], TABLE2_YEAR, TABLE2_ROWS, TABLE2_TOTAL_HOURS)
+  fillSummaryTable(form, data.blocks[0], TABLE1_YEAR, TABLE1_ROWS, TABLE1_TOTAL_HOURS, pendingRemarks)
+  fillSummaryTable(form, data.blocks[1], TABLE2_YEAR, TABLE2_ROWS, TABLE2_TOTAL_HOURS, pendingRemarks)
 
   form.updateFieldAppearances(japaneseFont)
   form.flatten()
+
+  const page = pdfDoc.getPage(0)
+  for (const { text, rect, fontSize } of pendingRemarks) {
+    drawNameWithTracking(page, japaneseFont, text, rect, fontSize, 0)
+  }
+
   return pdfDoc.save()
 }
 

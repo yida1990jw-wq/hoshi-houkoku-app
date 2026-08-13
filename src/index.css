@@ -735,6 +735,15 @@ input {
   font-weight: 600;
 }
 
+.print-toolbar-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #222;
+  cursor: pointer;
+}
+
 /* ---- PDF埋め込み印刷ページ(S-21相当の帳票をpdf-libで直接埋め込む方式) ---- */
 
 .pdf-print-page {

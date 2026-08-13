@@ -10,6 +10,9 @@ export function PublisherCardPrintPage() {
   const [fileName, setFileName] = useState('伝道者記録.pdf')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  // 選択した年度(下段)の時間・備考の集計欄を表示するかどうか。年度途中に印刷する場合など
+  // 未確定の集計を出したくないことがあるため。前の年度(上段)は常に表示
+  const [showTotals, setShowTotals] = useState(true)
 
   useEffect(() => {
     if (!publisherId || !year) return
@@ -22,7 +25,7 @@ export function PublisherCardPrintPage() {
 
     fetchPublisherCardData(publisherId, Number(year))
       .then(async (data) => {
-        const pdfBytes = await fillPublisherCardPdf(data)
+        const pdfBytes = await fillPublisherCardPdf(data, { showSelectedYearTotals: showTotals })
         if (cancelled) return
         const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' })
         objectUrl = URL.createObjectURL(blob)
@@ -40,7 +43,7 @@ export function PublisherCardPrintPage() {
       cancelled = true
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
-  }, [publisherId, year])
+  }, [publisherId, year, showTotals])
 
   return (
     <div className="pdf-print-page">
@@ -49,6 +52,10 @@ export function PublisherCardPrintPage() {
         {publisherId && year && (
           <PublisherSwitcher currentId={publisherId} buildPath={(id) => `/print/publisher-card/${id}/${year}`} />
         )}
+        <label className="print-toolbar-checkbox">
+          <input type="checkbox" checked={showTotals} onChange={(e) => setShowTotals(e.target.checked)} />
+          選択年度の集計欄を表示
+        </label>
         {pdfUrl && (
           <a href={pdfUrl} download={fileName}>
             ダウンロード
