@@ -108,6 +108,106 @@ function drawNameWithTracking(
   }
 }
 
+// 備考欄などに収まりきらない長さのテキストを表示するための下限フォントサイズ。
+// これ以上は縮小しない(可読性の限界)
+const FIT_MIN_FONT_SIZE = 6
+
+function charsLineWidth(font: PDFFont, text: string, fontSize: number) {
+  return font.widthOfTextAtSize(text, fontSize)
+}
+
+function drawCharsLine(page: PDFPage, font: PDFFont, text: string, x: number, y: number, fontSize: number) {
+  let cx = x
+  for (const char of text) {
+    page.drawText(char, { x: cx, y, size: fontSize, font })
+    cx += font.widthOfTextAtSize(char, fontSize)
+  }
+}
+
+// 与えられた幅に収まるよう、1文字ずつ詰めてmaxLines行までに折り返す
+function wrapToLines(text: string, font: PDFFont, fontSize: number, maxWidth: number, maxLines: number): string[] {
+  const lines: string[] = []
+  let current = ''
+  for (const char of text) {
+    const trial = current + char
+    if (current && charsLineWidth(font, trial, fontSize) > maxWidth) {
+      lines.push(current)
+      current = char
+      if (lines.length === maxLines) break
+    } else {
+      current = trial
+    }
+  }
+  if (lines.length < maxLines && current) lines.push(current)
+  return lines
+}
+
+// 末尾に「…」を付けつつ幅に収める(縮小・折り返しでも入りきらない場合の最終手段)
+function appendEllipsis(text: string, font: PDFFont, fontSize: number, maxWidth: number): string {
+  let result = text
+  while (result.length > 0 && charsLineWidth(font, `${result}…`, fontSize) > maxWidth) {
+    result = result.slice(0, -1)
+  }
+  return `${result}…`
+}
+
+// 備考欄などの固定サイズの箱にテキストを収める。まず1行のままフォントサイズを
+// 縮小して収まるか試し、それでも収まらない場合は2行に折り返しながら縮小する。
+// 箱の高さ・幅は変更しない
+function drawFittedText(
+  page: PDFPage,
+  font: PDFFont,
+  text: string,
+  rect: { x: number; y: number; width: number; height: number },
+  baseFontSize: number,
+) {
+  const padding = 1
+  const maxWidth = rect.width - padding * 2
+  const maxHeight = rect.height - padding * 2
+
+  let fontSize = baseFontSize
+  while (fontSize > FIT_MIN_FONT_SIZE && charsLineWidth(font, text, fontSize) > maxWidth) {
+    fontSize -= 0.5
+  }
+  if (charsLineWidth(font, text, fontSize) <= maxWidth) {
+    const fontHeight = font.heightAtSize(fontSize, { descender: false })
+    const y = rect.y + padding + ((rect.height - padding * 2) / 2 - fontHeight / 2)
+    drawCharsLine(page, font, text, rect.x + padding, y, fontSize)
+    return
+  }
+
+  // 1行では収まらないため、高さの範囲内で2行に折り返せるフォントサイズまで縮小する
+  fontSize = baseFontSize
+  let lines: string[] = []
+  while (fontSize > FIT_MIN_FONT_SIZE) {
+    const fontHeight = font.heightAtSize(fontSize, { descender: false })
+    const lineStep = fontHeight * 1.25
+    if (lineStep * 2 <= maxHeight) {
+      lines = wrapToLines(text, font, fontSize, maxWidth, 2)
+      if (lines.length <= 2) break
+    }
+    fontSize -= 0.5
+  }
+  if (lines.length === 0) {
+    fontSize = FIT_MIN_FONT_SIZE
+    lines = wrapToLines(text, font, fontSize, maxWidth, 2)
+  }
+  // 折り返した2行に収まりきらず、元のテキストが途中で切れた場合は「…」を付ける
+  const consumedLength = lines.reduce((sum, l) => sum + l.length, 0)
+  if (consumedLength < text.length && lines.length > 0) {
+    lines[lines.length - 1] = appendEllipsis(lines[lines.length - 1], font, fontSize, maxWidth)
+  }
+
+  const fontHeight = font.heightAtSize(fontSize, { descender: false })
+  const lineStep = fontHeight * 1.25
+  const stackHeight = fontHeight + lineStep * (lines.length - 1)
+  let y = rect.y + padding + ((rect.height - padding * 2) / 2 + stackHeight / 2 - fontHeight)
+  for (const line of lines) {
+    drawCharsLine(page, font, line, rect.x + padding, y, fontSize)
+    y -= lineStep
+  }
+}
+
 function setCheckbox(form: PDFForm, name: string, checked: boolean) {
   const box = form.getCheckBox(name)
   if (checked) box.check()
@@ -262,7 +362,7 @@ export async function fillPublisherCardPdf(
     5,
   )
   for (const { text, rect, fontSize } of pendingRemarks) {
-    drawNameWithTracking(page, japaneseFont, text, rect, fontSize, 0)
+    drawFittedText(page, japaneseFont, text, rect, fontSize)
   }
 
   return pdfDoc.save()
@@ -315,7 +415,7 @@ export async function fillCongregationSummaryCardPdf(data: CongregationSummaryCa
 
   const page = pdfDoc.getPage(0)
   for (const { text, rect, fontSize } of pendingRemarks) {
-    drawNameWithTracking(page, japaneseFont, text, rect, fontSize, 0)
+    drawFittedText(page, japaneseFont, text, rect, fontSize)
   }
 
   return pdfDoc.save()
