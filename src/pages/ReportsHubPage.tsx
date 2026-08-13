@@ -86,20 +86,14 @@ export function ReportsHubPage() {
         </label>
       </div>
       <ul className="reports-list">
-        <li>
-          {publisherId ? (
-            <Link to={`/print/publisher-card/${publisherId}/${year}`}>伝道者記録を印刷</Link>
-          ) : (
-            <span className="reports-hint">伝道者を選択してください</span>
-          )}
-        </li>
-        {(!selectedPublisher || needsYearEndNotice) && (
+        {publisherId && (
           <li>
-            {publisherId ? (
-              <Link to={`/print/year-end-notice/${publisherId}/${year}`}>年度末お知らせを印刷</Link>
-            ) : (
-              <span className="reports-hint">伝道者を選択してください</span>
-            )}
+            <Link to={`/print/publisher-card/${publisherId}/${year}`}>伝道者記録を印刷</Link>
+          </li>
+        )}
+        {publisherId && needsYearEndNotice && (
+          <li>
+            <Link to={`/print/year-end-notice/${publisherId}/${year}`}>年度末お知らせを印刷</Link>
           </li>
         )}
       </ul>
