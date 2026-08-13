@@ -149,6 +149,8 @@ export function StaffPage() {
       </div>
       <p className="reports-hint">
         「監督者」は全データを閲覧できますが、追加・編集・削除はできません。招待するとメールで招待リンクが送信され、本人がパスワードを設定します。
+        パスワードを忘れた場合は、削除して招待し直す必要はありません。Supabaseダッシュボードの Authentication → Users
+        から該当ユーザーを選び、パスワード再設定メールを送信してください。届いたリンクから、招待時と同じ画面でパスワードを再設定できます。
       </p>
       {error && <p className="error-text">{error}</p>}
       {formOpen && (
