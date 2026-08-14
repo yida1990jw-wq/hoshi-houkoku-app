@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>奉仕報告管理</title>
 
     <!-- ホーム画面に追加(PWA)のための設定 -->
@@ -12,7 +12,9 @@
     <!-- iOSはmanifestのiconsを見ないため、専用に指定する -->
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- black-translucent にすると画面最上部までコンテンツが伸び、iPhoneのDynamic Islandの
+         裏にヘッダーが隠れてしまう。default にして、状態表示バーの下から始まるようにする -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="奉仕報告管理" />
   </head>
   <body>
