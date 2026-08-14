@@ -20,7 +20,7 @@ export function LoginPage() {
   return (
     <div className="login-page">
       <form className="login-form" onSubmit={handleSubmit}>
-        <h1>奉仕報告アプリ（管理者用）</h1>
+        <h1>奉仕報告管理（管理者用）</h1>
         <label>
           メールアドレス
           <input

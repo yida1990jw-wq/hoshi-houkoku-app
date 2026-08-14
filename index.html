@@ -2,9 +2,18 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>奉仕報告アプリ</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>奉仕報告管理</title>
+
+    <!-- ホーム画面に追加(PWA)のための設定 -->
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <meta name="theme-color" content="#4a1fa8" />
+    <!-- iOSはmanifestのiconsを見ないため、専用に指定する -->
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="奉仕報告管理" />
   </head>
   <body>
     <div id="root"></div>
