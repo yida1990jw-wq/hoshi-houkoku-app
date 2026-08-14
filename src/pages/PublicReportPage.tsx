@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import { useAuth } from '../context/AuthContext'
 import { computeReportPeriod } from '../lib/reportPeriod'
 import { CONSIDERATION_REASONS, capConsideredHours, composeRemarks, type ConsiderationReason } from '../lib/reportRules'
 import { PIONEER_TARGET_STATUSES, type PublicPublisherMatch } from '../types/domain'
@@ -50,6 +52,9 @@ function AuxChoiceButtons({ value, onChange }: { value: AuxChoice | null; onChan
 }
 
 export function PublicReportPage() {
+  // ログイン中(管理者・監督者)がこの画面に来た場合だけ、管理画面への戻り道を出す。
+  // ホーム画面に追加して開くと戻るボタンが無く行き止まりになるため
+  const { session } = useAuth()
   const [step, setStep] = useState<Step>('name')
   const [nameInput, setNameInput] = useState('')
   const [matching, setMatching] = useState(false)
@@ -298,6 +303,14 @@ export function PublicReportPage() {
   return (
     <div className="login-page login-page-top">
       <div className="login-form" style={{ maxWidth: 480 }}>
+        {/* ログイン中(管理者・監督者)が管理画面から来た場合だけ戻り道を出す。
+            ホーム画面に追加して開くと戻るボタンが画面に無く、行き止まりになるため。
+            リンクを受け取って開いた伝道者には表示されない */}
+        {session && (
+          <p style={{ margin: '0 0 12px' }}>
+            <Link to="/submission-status">← 管理画面に戻る</Link>
+          </p>
+        )}
         <h1>野外奉仕の報告</h1>
         <p className="reports-hint">
           対象月: {period.year}年度{period.month}月
@@ -472,8 +485,16 @@ export function PublicReportPage() {
 
         {step === 'done' && (
           <div>
-            <p>送信しました。ありがとうございました。このページは閉じていただいて構いません。</p>
+            <p>
+              送信しました。ありがとうございました。
+              {!session && 'このページは閉じていただいて構いません。'}
+            </p>
             <div className="publisher-form-actions">
+              {session && (
+                <Link className="header-button" to="/submission-status">
+                  管理画面に戻る
+                </Link>
+              )}
               <button type="button" onClick={handleRestart}>
                 はじめから
               </button>

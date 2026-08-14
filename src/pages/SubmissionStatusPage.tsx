@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { ROSTER_STATUS_ORDER, type Group, type Publisher, type ServiceReport } from '../types/domain'
 import { currentMonth, currentServiceYear } from '../lib/serviceYear'
@@ -65,6 +66,11 @@ export function SubmissionStatusPage() {
     <div className="page">
       <div className="page-header">
         <h1>提出状況</h1>
+        {/* 管理者・監督者が自分の報告を出すための入口。ホーム画面に追加して使う場合、
+            Androidのショートカットは使えてもiOSでは使えないため、画面内にも置いている */}
+        <Link className="header-button" to="/submit">
+          報告フォーム
+        </Link>
       </div>
       <div className="date-nav">
         <label>

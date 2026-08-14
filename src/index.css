@@ -404,6 +404,18 @@ input {
   font-weight: 600;
 }
 
+/* 見出しの右に置く、リンクだがボタンに見せる要素(page-header button と同じ見た目) */
+.header-button {
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
 .link-button {
   background: none;
   border: none;
