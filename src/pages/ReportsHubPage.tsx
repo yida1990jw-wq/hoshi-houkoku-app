@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
-import { PIONEER_TARGET_STATUSES, ROSTER_STATUS_ORDER, type Publisher } from '../types/domain'
+import { PIONEER_TARGET_STATUSES, ROSTER_STATUS_ORDER, type Group, type Publisher } from '../types/domain'
 import { currentServiceYear } from '../lib/serviceYear'
 import { usePersistedState, useSessionPersistedState } from '../lib/usePersistedState'
 import { SUMMARY_PATTERNS, type SummaryPattern } from '../lib/printData'
@@ -18,8 +18,12 @@ const PATTERN_LABELS: Record<SummaryPattern, string> = {
 
 export function ReportsHubPage() {
   const [publishers, setPublishers] = useState<Publisher[]>([])
+  const [groups, setGroups] = useState<Group[]>([])
   const [publisherId, setPublisherId] = usePersistedState('reportsHub.publisherId', '')
   const [year, setYear] = useSessionPersistedState('reportsHub.year', currentServiceYear())
+  // 一括出力の対象。'pioneers' か、グループのid
+  const [bulkScope, setBulkScope] = usePersistedState('reportsHub.bulkScope', 'pioneers')
+  const [bulkYear, setBulkYear] = useSessionPersistedState('reportsHub.bulkYear', currentServiceYear())
   const [summaryYear, setSummaryYear] = useSessionPersistedState('congregationSummary.year', currentServiceYear())
   const [summaryPattern, setSummaryPattern] = usePersistedState<SummaryPattern>('congregationSummary.pattern', '会衆')
 
@@ -36,6 +40,11 @@ export function ReportsHubPage() {
         })
         setPublishers(sorted)
       })
+    supabase
+      .from('groups')
+      .select('*')
+      .returns<Group[]>()
+      .then(({ data }) => setGroups(data ?? []))
   }, [])
 
   useEffect(() => {
@@ -44,6 +53,7 @@ export function ReportsHubPage() {
       .then((latestYear) => {
         if (latestYear === null) return
         if (sessionStorage.getItem('reportsHub.year') === null) setYear(latestYear)
+        if (sessionStorage.getItem('reportsHub.bulkYear') === null) setBulkYear(latestYear)
         if (sessionStorage.getItem('congregationSummary.year') === null) setSummaryYear(latestYear)
       })
       .catch(() => {})
@@ -96,6 +106,45 @@ export function ReportsHubPage() {
             <Link to={`/print/year-end-notice/${publisherId}/${year}`}>年度末お知らせを印刷</Link>
           </li>
         )}
+      </ul>
+
+      <h2 style={{ fontSize: 15, marginTop: 24, marginBottom: 8 }}>伝道者記録の一括出力</h2>
+      <p className="reports-hint">
+        在籍者の伝道者記録を、1人1ページでまとめた1つのPDFにします（ローマ字順）。
+        開拓者（正規・特別・野外の宣教者）はグループ横断でまとめ、各グループはそれ以外の方が対象です。
+      </p>
+      <div className="date-nav">
+        <label>
+          対象
+          <select value={bulkScope} onChange={(e) => setBulkScope(e.target.value)}>
+            <option value="pioneers">開拓者（正規・特別・野外の宣教者）</option>
+            {groups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}グループ
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          年度
+          <select value={bulkYear} onChange={(e) => setBulkYear(Number(e.target.value))}>
+            {YEAR_OPTIONS.map((y) => (
+              <option key={y} value={y}>
+                {y}年度
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <ul className="reports-list">
+        <li>
+          <Link to={`/print/publisher-cards/${bulkScope}/${bulkYear}`}>
+            {bulkScope === 'pioneers'
+              ? '開拓者'
+              : `${groups.find((g) => g.id === bulkScope)?.name ?? ''}グループ`}
+            の伝道者記録をまとめて出力
+          </Link>
+        </li>
       </ul>
 
       <h2 style={{ fontSize: 15, marginTop: 24, marginBottom: 8 }}>会衆の帳票</h2>

@@ -159,7 +159,19 @@ function loadFontBytes() {
 }
 
 /**
- * S-21相当の用紙を1ページ持つPDFを作る。
+ * S-21相当の用紙を1ページ分だけ追加して返す。
+ * 一括出力では、1つの文書にこれを人数分呼ぶこと。生成済みのPDFを結合する方式だと
+ * 日本語フォント(約5MB)が人数分そのまま重複し、22人で66MBまで膨らむのに対し、
+ * 1文書に描けば埋め込みは1回で済み22人でも約3MBに収まる(実測)。
+ */
+export function addS21Page(pdfDoc: PDFDocument, fonts: S21Fonts) {
+  const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT])
+  drawBlankForm(page, fonts)
+  return page
+}
+
+/**
+ * フォントを埋め込んだ空のPDFを作る(ページはまだ無い。addS21Pageで追加する)。
  * subset:true は pdf-lib のサブセット処理の不具合で文字が欠けるため使わない
  * (フォーム欄の有無とは無関係に再現することを確認済み)。太字は固定ラベルにしか
  * 使わないので、その文字だけに絞った軽量フォントを別に用意している。
@@ -173,7 +185,5 @@ export async function createS21Document() {
     regular: await pdfDoc.embedFont(bytes.regular.slice(0), { subset: false }),
     bold: await pdfDoc.embedFont(bytes.bold.slice(0), { subset: false }),
   }
-  const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT])
-  drawBlankForm(page, fonts)
-  return { pdfDoc, page, fonts }
+  return { pdfDoc, fonts }
 }

@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient'
-import type { Group, Publisher, ServiceReport } from '../types/domain'
+import { PIONEER_TARGET_STATUSES, type Group, type Publisher, type ServiceReport } from '../types/domain'
 import { SERVICE_YEAR_MONTHS } from './serviceYear'
 
 export interface PublisherYearData {
@@ -74,6 +74,84 @@ export async function fetchPublisherCardData(publisherId: string, selectedYear: 
   })) as [PublisherCardYearBlock, PublisherCardYearBlock]
 
   return { publisher, blocks }
+}
+
+// 伝道者記録の一括出力の対象。開拓者(正規・特別・野外の宣教者)はグループ横断で1つにまとめ、
+// 各グループはそれ以外の在籍者(伝道者・補助開拓者など)を対象にする。
+// 補助開拓は特定の月だけの designation なので、名簿上の所属グループ側に含める
+export type PublisherCardsScope = { kind: 'pioneers' } | { kind: 'group'; groupId: string }
+
+export interface PublisherCardsData {
+  label: string
+  cards: PublisherCardData[]
+}
+
+function isPioneer(publisher: Publisher) {
+  return (PIONEER_TARGET_STATUSES as readonly string[]).includes(publisher.pioneer_status)
+}
+
+export async function fetchPublisherCardsData(
+  scope: PublisherCardsScope,
+  selectedYear: number,
+): Promise<PublisherCardsData> {
+  const previousYear = selectedYear - 1
+
+  const query = supabase.from('publishers').select('*').eq('is_active', true)
+  const { data: rows, error } = await (scope.kind === 'group' ? query.eq('group_id', scope.groupId) : query).returns<
+    Publisher[]
+  >()
+  if (error) throw error
+
+  // 開拓者はグループ側の帳票に重複して出さない
+  const publishers = (rows ?? [])
+    .filter((p) => (scope.kind === 'pioneers' ? isPioneer(p) : !isPioneer(p)))
+    .sort((a, b) => (a.romaji ?? '').localeCompare(b.romaji ?? ''))
+
+  let label = '開拓者'
+  if (scope.kind === 'group') {
+    const { data: group, error: groupError } = await supabase
+      .from('groups')
+      .select('*')
+      .eq('id', scope.groupId)
+      .returns<Group[]>()
+      .single()
+    if (groupError) throw groupError
+    label = group?.name ?? 'グループ'
+  }
+
+  if (publishers.length === 0) return { label, cards: [] }
+
+  // Supabaseは1クエリ最大1000件しか返さないため、年度ごとに分けて取得する
+  // (22人×12ヶ月=264件/年度なので余裕はあるが、人数が増えても壊れないようにしておく)
+  const ids = publishers.map((p) => p.id)
+  const perYear = await Promise.all(
+    [previousYear, selectedYear].map((year) =>
+      supabase
+        .from('service_reports')
+        .select('*')
+        .in('publisher_id', ids)
+        .eq('year', year)
+        .returns<ServiceReport[]>()
+        .then(({ data, error: reportError }) => {
+          if (reportError) throw reportError
+          return data ?? []
+        }),
+    ),
+  )
+  const reports = perYear.flat()
+
+  const cards = publishers.map((publisher) => ({
+    publisher,
+    blocks: [previousYear, selectedYear].map((year) => ({
+      year,
+      months: SERVICE_YEAR_MONTHS.map((month) => ({
+        month,
+        report: reports.find((r) => r.publisher_id === publisher.id && r.year === year && r.month === month) ?? null,
+      })),
+    })) as [PublisherCardYearBlock, PublisherCardYearBlock],
+  }))
+
+  return { label, cards }
 }
 
 // 「会衆集計」(伝道者記録と同じS-21相当PDFを使う版)の4パターン。

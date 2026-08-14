@@ -744,6 +744,13 @@ input {
   cursor: pointer;
 }
 
+/* 一括出力で「何名分か」を示す補足表示 */
+.print-toolbar-note {
+  font-size: 14px;
+  color: #555;
+  white-space: nowrap;
+}
+
 /* ---- PDF埋め込み印刷ページ(S-21相当の帳票をpdf-libで直接埋め込む方式) ---- */
 
 .pdf-print-page {

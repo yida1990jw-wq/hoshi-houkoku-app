@@ -17,6 +17,9 @@ import { PublicReportPage } from './pages/PublicReportPage'
 const PublisherCardPrintPage = lazy(() =>
   import('./pages/print/PublisherCardPrintPage').then((m) => ({ default: m.PublisherCardPrintPage })),
 )
+const PublisherCardsPrintPage = lazy(() =>
+  import('./pages/print/PublisherCardsPrintPage').then((m) => ({ default: m.PublisherCardsPrintPage })),
+)
 const CongregationSummaryPrintPage = lazy(() =>
   import('./pages/print/CongregationSummaryPrintPage').then((m) => ({ default: m.CongregationSummaryPrintPage })),
 )
@@ -40,6 +43,14 @@ function AdminArea() {
           element={
             <Suspense fallback={<div className="center-message">読み込み中...</div>}>
               <PublisherCardPrintPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/print/publisher-cards/:scope/:year"
+          element={
+            <Suspense fallback={<div className="center-message">読み込み中...</div>}>
+              <PublisherCardsPrintPage />
             </Suspense>
           }
         />

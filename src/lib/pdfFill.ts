@@ -8,7 +8,7 @@ import type {
   SummaryCardYearBlock,
 } from './printData'
 import { formatJapaneseDate, formatShortQualDate, formatShortYearMonth, yearsSince } from './dateFormat'
-import { checkBox, createS21Document, drawFieldText, textRect, type TextAlign } from './s21Form'
+import { addS21Page, checkBox, createS21Document, drawFieldText, textRect, type TextAlign } from './s21Form'
 import type { Rect } from './s21Layout'
 
 // 伝道者記録・会衆集計で使う記入欄の対応表。もとは組織の配布するPDFのフォーム欄名で、
@@ -242,13 +242,13 @@ function fillTable(
   }
 }
 
-export async function fillPublisherCardPdf(
+/** 用紙1ページ分に、1人の伝道者記録を描く */
+function drawPublisherCard(
+  page: PDFPage,
+  font: PDFFont,
   data: PublisherCardData,
   options: { showSelectedYearTotals?: boolean } = {},
-): Promise<Uint8Array> {
-  const { pdfDoc, page, fonts } = await createS21Document()
-  const font = fonts.regular
-
+) {
   const { publisher } = data
   const furigana = `${publisher.last_name_kana ?? ''} ${publisher.first_name_kana ?? ''}`.trim()
   const age = yearsSince(publisher.birth_date)
@@ -318,7 +318,30 @@ export async function fillPublisherCardPdf(
     TABLE2_REMARKS_TOTAL,
     options.showSelectedYearTotals ?? true,
   )
+}
 
+export async function fillPublisherCardPdf(
+  data: PublisherCardData,
+  options: { showSelectedYearTotals?: boolean } = {},
+): Promise<Uint8Array> {
+  const { pdfDoc, fonts } = await createS21Document()
+  drawPublisherCard(addS21Page(pdfDoc, fonts), fonts.regular, data, options)
+  return pdfDoc.save()
+}
+
+/**
+ * 複数人の伝道者記録を1つのPDFにまとめる(1人1ページ)。
+ * 1人分ずつ作ったPDFを結合するのではなく1つの文書に描くことで、
+ * フォントの埋め込みが1回で済む(理由は s21Form.ts の addS21Page 参照)
+ */
+export async function fillPublisherCardsPdf(
+  list: PublisherCardData[],
+  options: { showSelectedYearTotals?: boolean } = {},
+): Promise<Uint8Array> {
+  const { pdfDoc, fonts } = await createS21Document()
+  for (const data of list) {
+    drawPublisherCard(addS21Page(pdfDoc, fonts), fonts.regular, data, options)
+  }
   return pdfDoc.save()
 }
 
@@ -354,7 +377,8 @@ function fillSummaryTable(
 // 生年月日・バプテスマ・性別・希望・資格・立場のチェック、宣教/補助開拓の月次チェックは
 // 使用しない(枠だけ描かれ、チェックは入らない)
 export async function fillCongregationSummaryCardPdf(data: CongregationSummaryCardData): Promise<Uint8Array> {
-  const { pdfDoc, page, fonts } = await createS21Document()
+  const { pdfDoc, fonts } = await createS21Document()
+  const page = addS21Page(pdfDoc, fonts)
   const font = fonts.regular
 
   drawFieldText(page, font, 'Text 73', data.label, { fontSize: NAME_LABEL_FONT_SIZE })
