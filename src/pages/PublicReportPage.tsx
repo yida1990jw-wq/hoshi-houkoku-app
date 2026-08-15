@@ -89,15 +89,25 @@ function DebugReadout() {
       const input = document.querySelector('.pr-page input') as HTMLElement | null
       const vv = window.visualViewport
       const css = [...document.styleSheets].map((s) => s.href?.split('/').pop()).filter(Boolean)
+      // 画面より広がっている要素を実際に探し出して名指しする
+      const layoutWidth = document.documentElement.clientWidth
+      const widest: string[] = []
+      document.querySelectorAll('*').forEach((el) => {
+        const r = (el as HTMLElement).getBoundingClientRect()
+        if (r.width > layoutWidth * 0.99) {
+          const cls = typeof el.className === 'string' && el.className ? '.' + el.className.split(' ')[0] : ''
+          widest.push(`${el.tagName}${cls}=${Math.round(r.width)}`)
+        }
+      })
       setText(
         [
           '氏名欄のサイズ: ' + (input ? getComputedStyle(input).fontSize : '見つからない'),
-          'pr-page: ' + (document.querySelector('.pr-page') ? 'あり' : 'なし'),
           '倍率: ' + (vv ? vv.scale.toFixed(2) : '-'),
-          'innerWidth: ' + window.innerWidth,
+          'clientWidth: ' + layoutWidth,
           'visualWidth: ' + (vv ? Math.round(vv.width) : '-'),
+          'body幅: ' + Math.round(document.body.getBoundingClientRect().width),
           'scrollWidth: ' + document.documentElement.scrollWidth,
-          'はみ出し: ' + (document.documentElement.scrollWidth > window.innerWidth + 1 ? 'あり' : 'なし'),
+          '広い要素: ' + (widest.length ? widest.slice(0, 6).join(' / ') : 'なし'),
           'CSS: ' + css.join(','),
         ].join('\n'),
       )
