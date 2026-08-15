@@ -20,6 +20,12 @@ const PublisherCardPrintPage = lazy(() =>
 const PublisherCardsPrintPage = lazy(() =>
   import('./pages/print/PublisherCardsPrintPage').then((m) => ({ default: m.PublisherCardsPrintPage })),
 )
+const ReportListPrintPage = lazy(() =>
+  import('./pages/print/ReportListPrintPage').then((m) => ({ default: m.ReportListPrintPage })),
+)
+const PioneerProgressPrintPage = lazy(() =>
+  import('./pages/print/PioneerProgressPrintPage').then((m) => ({ default: m.PioneerProgressPrintPage })),
+)
 const CongregationSummaryPrintPage = lazy(() =>
   import('./pages/print/CongregationSummaryPrintPage').then((m) => ({ default: m.CongregationSummaryPrintPage })),
 )
@@ -51,6 +57,22 @@ function AdminArea() {
           element={
             <Suspense fallback={<div className="center-message">読み込み中...</div>}>
               <PublisherCardsPrintPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/print/report-list/:year/:month"
+          element={
+            <Suspense fallback={<div className="center-message">読み込み中...</div>}>
+              <ReportListPrintPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/print/pioneer-progress/:year"
+          element={
+            <Suspense fallback={<div className="center-message">読み込み中...</div>}>
+              <PioneerProgressPrintPage />
             </Suspense>
           }
         />

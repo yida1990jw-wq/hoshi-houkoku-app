@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabaseClient'
 import { STAFF_ROLES, type Group, type Staff, type StaffRole } from '../types/domain'
 import { useAuth } from '../context/AuthContext'
 import { CONSIDERATION_REASONS, fetchReportRules, type ReportRules } from '../lib/reportRules'
+import { backupFileStamp, downloadFile, fetchBackup, toCsv } from '../lib/backup'
 
 const REPORT_LINK = `${window.location.origin}${window.location.pathname}#/submit`
 
@@ -41,6 +42,77 @@ function ReportLinkSection() {
       </div>
       {qrDataUrl && <img src={qrDataUrl} alt="報告リンクのQRコード" width={220} height={220} />}
     </section>
+  )
+}
+
+// 会衆の記録はSupabaseの1か所にしかなく、無料プランには自動バックアップが無いため、
+// 手元に控えを残せるようにする
+function BackupSection() {
+  const [busy, setBusy] = useState<string | null>(null)
+  const [done, setDone] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  async function run(kind: 'json' | 'publishers' | 'reports') {
+    setBusy(kind)
+    setError(null)
+    setDone(null)
+    try {
+      const data = await fetchBackup()
+      const stamp = backupFileStamp()
+      if (kind === 'json') {
+        downloadFile(`奉仕報告バックアップ_${stamp}.json`, JSON.stringify(data, null, 2), 'application/json')
+        setDone(`名簿${data.publishers.length}件・報告${data.serviceReports.length}件を書き出しました`)
+      } else if (kind === 'publishers') {
+        const groupName = new Map(data.groups.map((g) => [g.id as string, g.name as string]))
+        const rows = data.publishers.map((p) => ({ ...p, group_name: groupName.get(p.group_id as string) ?? '' }))
+        downloadFile(`名簿_${stamp}.csv`, toCsv(rows), 'text/csv;charset=utf-8')
+        setDone(`名簿${rows.length}件を書き出しました`)
+      } else {
+        // 報告だけでは誰の行か分からないため、氏名を添えて書き出す
+        const name = new Map(data.publishers.map((p) => [p.id as string, `${p.last_name} ${p.first_name}`]))
+        const rows = data.serviceReports.map((r) => ({
+          氏名: name.get(r.publisher_id as string) ?? '',
+          ...r,
+        }))
+        downloadFile(`報告_${stamp}.csv`, toCsv(rows), 'text/csv;charset=utf-8')
+        setDone(`報告${rows.length}件を書き出しました`)
+      }
+    } catch (e) {
+      setError((e as { message?: string })?.message || '書き出しに失敗しました')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <>
+      <div className="page-header">
+        <h2>データの書き出し</h2>
+      </div>
+      <p className="reports-hint">
+        会衆の記録はこのアプリの中だけにあり、自動のバックアップはありません。年に一度でも書き出して、
+        パソコンや外部の保存先に残しておくことをお勧めします。
+      </p>
+      {error && <p className="error-text">{error}</p>}
+      {done && <p className="reports-hint">{done}</p>}
+      <div className="publisher-inline-form">
+        <div className="publisher-form-actions">
+          <button type="button" onClick={() => run('json')} disabled={!!busy}>
+            {busy === 'json' ? '書き出し中...' : 'バックアップ（全データ）'}
+          </button>
+          <button type="button" onClick={() => run('publishers')} disabled={!!busy}>
+            {busy === 'publishers' ? '書き出し中...' : '名簿（CSV）'}
+          </button>
+          <button type="button" onClick={() => run('reports')} disabled={!!busy}>
+            {busy === 'reports' ? '書き出し中...' : '報告（CSV）'}
+          </button>
+        </div>
+        <p className="reports-hint">
+          「バックアップ（全データ）」は名簿・報告・グループ・設定をまとめた復元用のファイルです。中身を読む用途では
+          CSVの方をExcelで開けます。
+        </p>
+      </div>
+    </>
   )
 }
 
@@ -461,6 +533,8 @@ export function StaffPage() {
       <GroupsSection />
 
       <ReportRulesSection />
+
+      <BackupSection />
 
       <div className="page-header">
         <h2>スタッフ管理</h2>

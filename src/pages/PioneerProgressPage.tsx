@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import type { Publisher, ServiceReport } from '../types/domain'
 import { currentServiceYear, SERVICE_YEAR_MONTHS } from '../lib/serviceYear'
@@ -118,6 +119,9 @@ export function PioneerProgressPage() {
     <div className="page">
       <div className="page-header">
         <h1>開拓者進捗</h1>
+        <Link className="header-button" to={`/print/pioneer-progress/${year}`}>
+          PDF出力
+        </Link>
       </div>
       <div className="date-nav">
         <label>

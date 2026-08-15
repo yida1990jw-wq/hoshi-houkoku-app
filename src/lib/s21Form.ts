@@ -1,5 +1,5 @@
-import { PDFDocument, rgb, type PDFFont, type PDFPage } from 'pdf-lib'
-import fontkit from '@pdf-lib/fontkit'
+import { rgb, type PDFDocument, type PDFFont, type PDFPage } from 'pdf-lib'
+import { createPdfWithFonts } from './pdfFonts'
 import {
   CHECKBOX_RECTS,
   PAGE_HEIGHT,
@@ -141,23 +141,6 @@ export function drawFieldText(
   })
 }
 
-// フォントは5MB超あるため、伝道者を切り替えるたびに取得し直さないよう保持する
-let fontCache: Promise<{ regular: ArrayBuffer; bold: ArrayBuffer }> | undefined
-
-function loadFontBytes() {
-  if (!fontCache) {
-    fontCache = Promise.all([
-      fetch(`${import.meta.env.BASE_URL}fonts/NotoSansJP-Regular.ttf`).then((r) => r.arrayBuffer()),
-      fetch(`${import.meta.env.BASE_URL}fonts/NotoSansJP-Bold-Labels.ttf`).then((r) => r.arrayBuffer()),
-    ]).then(([regular, bold]) => ({ regular, bold }))
-    // 失敗したものを持ち続けないようにする
-    fontCache.catch(() => {
-      fontCache = undefined
-    })
-  }
-  return fontCache
-}
-
 /**
  * S-21相当の用紙を1ページ分だけ追加して返す。
  * 一括出力では、1つの文書にこれを人数分呼ぶこと。生成済みのPDFを結合する方式だと
@@ -177,13 +160,6 @@ export function addS21Page(pdfDoc: PDFDocument, fonts: S21Fonts) {
  * 使わないので、その文字だけに絞った軽量フォントを別に用意している。
  */
 export async function createS21Document() {
-  const bytes = await loadFontBytes()
-  const pdfDoc = await PDFDocument.create()
-  pdfDoc.registerFontkit(fontkit)
-  const fonts: S21Fonts = {
-    // embedFont が元の ArrayBuffer を変更しないとは限らないため複製を渡す
-    regular: await pdfDoc.embedFont(bytes.regular.slice(0), { subset: false }),
-    bold: await pdfDoc.embedFont(bytes.bold.slice(0), { subset: false }),
-  }
-  return { pdfDoc, fonts }
+  return createPdfWithFonts()
 }
+

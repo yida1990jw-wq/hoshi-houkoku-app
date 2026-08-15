@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { PIONEER_STATUSES, type Publisher, type ServiceReport } from '../types/domain'
 import { currentMonth, currentServiceYear } from '../lib/serviceYear'
@@ -413,6 +414,9 @@ export function ReportsListPage() {
     <div className="page">
       <div className="page-header">
         <h1>報告一覧</h1>
+        <Link className="header-button" to={`/print/report-list/${year}/${month}`}>
+          PDF出力
+        </Link>
         {isAdmin && (
           <button type="button" onClick={toggleAddRow}>
             {editingId === NEW_ROW_ID ? '取消' : '+ 追加'}
