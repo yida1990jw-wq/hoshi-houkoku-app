@@ -66,6 +66,19 @@ function AuxChoiceButtons({
   )
 }
 
+// iOSは入力欄をタップすると画面を拡大することがあり、そのまま戻らないため右側が
+// 見切れてしまう。拡大自体を止められない場合の対処として、画面が切り替わった時点で
+// 倍率を元に戻す。viewportの指定を一瞬だけ maximum-scale=1 にして戻すと、
+// iOSは現在の拡大を解除する(指で広げる操作は従来どおり使える)
+function resetZoom() {
+  const meta = document.querySelector('meta[name="viewport"]')
+  if (!meta) return
+  const original = meta.getAttribute('content') ?? ''
+  if (original.includes('maximum-scale')) return
+  meta.setAttribute('content', `${original}, maximum-scale=1`)
+  window.setTimeout(() => meta.setAttribute('content', original), 300)
+}
+
 // 一時的な調査用。URLに debug を付けたときだけ、この画面の実測値を表示する。
 // 原因が判明したら削除する
 function DebugReadout() {
@@ -127,6 +140,11 @@ export function PublicReportPage() {
   useEffect(() => {
     fetchReportRules().then(setRules).catch(() => {})
   }, [])
+
+  // 画面が切り替わったら拡大を解除する(入力欄をタップして拡大されたままにしない)
+  useEffect(() => {
+    resetZoom()
+  }, [step])
 
   const period = useMemo(() => computeReportPeriod(), [])
 
