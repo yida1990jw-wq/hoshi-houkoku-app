@@ -5,7 +5,16 @@ import { supabase } from '../lib/supabaseClient'
 import { STAFF_ROLES, type Group, type Staff, type StaffRole } from '../types/domain'
 import { useAuth } from '../context/AuthContext'
 import { CONSIDERATION_REASONS, fetchReportRules, type ReportRules } from '../lib/reportRules'
-import { backupFileStamp, downloadFile, fetchBackup, toCsv } from '../lib/backup'
+import {
+  backupFileStamp,
+  deleteReportsBefore,
+  downloadFile,
+  fetchBackup,
+  planRetention,
+  toCsv,
+  type RetentionPlan,
+} from '../lib/backup'
+import { actualServiceYear } from '../lib/serviceYear'
 
 const REPORT_LINK = `${window.location.origin}${window.location.pathname}#/submit`
 
@@ -111,6 +120,106 @@ function BackupSection() {
           「バックアップ（全データ）」は名簿・報告・グループ・設定をまとめた復元用のファイルです。中身を読む用途では
           CSVの方をExcelで開けます。
         </p>
+      </div>
+    </>
+  )
+}
+
+// 保存期間(最低13か月・最長36か月)を過ぎた記録の削除。取り消せない操作なので、
+// 「何年度の何件が消えるか」を必ず先に見せてから実行する
+function RetentionSection() {
+  const [plan, setPlan] = useState<RetentionPlan | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState(false)
+  const [done, setDone] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  // 初期値用の currentServiceYear() は9〜12月に1年ずれるため、削除の判定には使わない
+  const currentYear = actualServiceYear()
+
+  async function reload() {
+    setLoading(true)
+    try {
+      setPlan(await planRetention(currentYear))
+      setError(null)
+    } catch (e) {
+      setError((e as { message?: string })?.message || '確認に失敗しました')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    reload()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  async function handleDelete() {
+    if (!plan || plan.deleteTotal === 0) return
+    const years = plan.deleteYears.map((d) => `${d.year}年度(${d.count}件)`).join('、')
+    const oldestKept = plan.keepYears[plan.keepYears.length - 1]
+    if (
+      !window.confirm(
+        `次の報告を完全に削除します。取り消せません。\n\n削除: ${years}\n合計 ${plan.deleteTotal}件\n\n` +
+          `残る年度: ${plan.keepYears.slice().reverse().join('・')}年度\n\n` +
+          `先に「データの書き出し」でバックアップを取りましたか?`,
+      )
+    )
+      return
+    setDeleting(true)
+    setError(null)
+    setDone(null)
+    try {
+      await deleteReportsBefore(oldestKept)
+      setDone(`${plan.deleteTotal}件を削除しました`)
+      await reload()
+    } catch (e) {
+      setError((e as { message?: string })?.message || '削除に失敗しました')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <>
+      <div className="page-header">
+        <h2>古い記録の削除</h2>
+      </div>
+      <p className="reports-hint">
+        奉仕報告は最低13か月・最長36か月の保存とされているため、年度単位で
+        <strong>当年度・前年度・前々年度の3年度分</strong>を残し、それより古い年度を削除します。
+        （13か月とは、伝道者記録の「上段＝前年度の12か月＋下段＝今年度の9月分」の状態を指します）
+      </p>
+      <p className="reports-hint">
+        <strong>削除は取り消せません。必ず先に上の「データの書き出し」でバックアップを取ってください。</strong>
+      </p>
+      {error && <p className="error-text">{error}</p>}
+      {done && <p className="reports-hint">{done}</p>}
+      <div className="publisher-inline-form">
+        {loading ? (
+          <p className="reports-hint">確認中...</p>
+        ) : plan ? (
+          <>
+            <p className="reports-hint">
+              残す年度：{plan.keepYears.slice().reverse().join('・')}年度（今は{currentYear}年度です）
+            </p>
+            {plan.deleteTotal === 0 ? (
+              <p className="reports-hint">保存期間を過ぎた記録はありません。</p>
+            ) : (
+              <>
+                <p className="reports-hint">
+                  削除対象：{plan.deleteYears.map((d) => `${d.year}年度 ${d.count}件`).join('、')}
+                  （合計 {plan.deleteTotal}件）
+                </p>
+                <div className="publisher-form-actions">
+                  <button type="button" onClick={handleDelete} disabled={deleting}>
+                    {deleting ? '削除中...' : `${plan.deleteTotal}件を削除する`}
+                  </button>
+                </div>
+              </>
+            )}
+          </>
+        ) : null}
       </div>
     </>
   )
@@ -535,6 +644,8 @@ export function StaffPage() {
       <ReportRulesSection />
 
       <BackupSection />
+
+      <RetentionSection />
 
       <div className="page-header">
         <h2>スタッフ管理</h2>

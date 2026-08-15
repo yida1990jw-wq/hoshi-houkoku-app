@@ -10,6 +10,14 @@ export function currentServiceYear(date = new Date()): number {
   return date.getFullYear()
 }
 
+// 今日が属する奉仕年度を、9月始まりの境界どおりに正しく求める。
+// currentServiceYear() は「初期値」用にズレを許容した簡略版なので、
+// **古い記録の削除のように1年ずれると実害が出る用途では必ずこちらを使うこと**。
+export function actualServiceYear(date = new Date()): number {
+  const year = date.getFullYear()
+  return date.getMonth() + 1 >= 9 ? year + 1 : year
+}
+
 export function currentMonth(date = new Date()): number {
   return date.getMonth() + 1
 }
