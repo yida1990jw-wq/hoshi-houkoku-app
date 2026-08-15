@@ -108,9 +108,23 @@ function DebugReadout() {
   }, [])
 
   return (
-    <div style={{ background: '#f2f2f2', borderRadius: 8, padding: 10, marginBottom: 12 }}>
-      <pre style={{ margin: 0, fontSize: 13, whiteSpace: 'pre-wrap' }}>{text}</pre>
-      <button type="button" style={{ marginTop: 8 }} onClick={() => navigator.clipboard?.writeText(text)}>
+    // 端末がダーク表示でも読めるよう、背景と文字色を明示する
+    <div
+      style={{
+        background: '#ffffff',
+        color: '#111111',
+        border: '2px solid #4a1fa8',
+        borderRadius: 8,
+        padding: 10,
+        marginBottom: 12,
+      }}
+    >
+      <pre style={{ margin: 0, fontSize: 15, lineHeight: 1.6, color: '#111111', whiteSpace: 'pre-wrap' }}>{text}</pre>
+      <button
+        type="button"
+        style={{ marginTop: 8, padding: '12px 16px', fontSize: 16, background: '#4a1fa8', color: '#fff', border: 'none', borderRadius: 8 }}
+        onClick={() => navigator.clipboard?.writeText(text)}
+      >
         コピー
       </button>
     </div>
