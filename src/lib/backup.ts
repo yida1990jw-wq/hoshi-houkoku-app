@@ -73,53 +73,60 @@ export function downloadFile(fileName: string, content: string, mime: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-// ---- 保存期間を過ぎた記録の削除 ----
-// 組織の指示により、奉仕報告は最低13か月・最長36か月保存し、それより古いものは削除する。
-// 13か月というのはS-21の「上段=前年度の12か月 + 下段=今年度の9月分」の状態を指すため、
-// 年度単位で数えて**当年度・前年度・前々年度の3年度分**を残し、それ以前を削除する。
-export const KEEP_SERVICE_YEARS = 3
+// ---- 保存期間と、年度単位での削除 ----
+// 組織の指示により、奉仕報告は最低13か月・最長36か月保存する。
+// 13か月とはS-21の「上段=前年度の12か月 + 下段=今年度の9月分」の状態を指すため、
+// 年度で数えると「当年度と前年度は必ず残す」「3年度分までは持てる」ことになる。
+// 削除は年度単位(12か月分)で行い、この範囲に反する年度を選んだ場合は警告する。
 
-export interface RetentionPlan {
-  /** 残す年度(新しい順) */
-  keepYears: number[]
-  /** 削除対象の年度と件数(古い順) */
-  deleteYears: { year: number; count: number }[]
-  deleteTotal: number
+export type RetentionStatus = 'deletable' | 'withinRetention' | 'required'
+
+export function retentionStatus(year: number, currentYear: number): RetentionStatus {
+  // 当年度・前年度は伝道者記録に必要なので消してはいけない
+  if (year >= currentYear - 1) return 'required'
+  // 前々年度は36か月の保存範囲内(消しても13か月は下回らないが、保存期間内ではある)
+  if (year === currentYear - 2) return 'withinRetention'
+  return 'deletable'
 }
 
-export async function planRetention(currentYear: number): Promise<RetentionPlan> {
-  const oldestKept = currentYear - (KEEP_SERVICE_YEARS - 1)
-  const keepYears = Array.from({ length: KEEP_SERVICE_YEARS }, (_, i) => currentYear - i)
+export interface YearCount {
+  year: number
+  count: number
+}
 
-  // 残す年度より古い記録が実際にどの年度に何件あるかを数える。
-  // 全件を取ってきて数えると1000件の上限に当たるため、年度ごとに件数だけ問い合わせる
-  const { data: oldest, error } = await supabase
-    .from('service_reports')
-    .select('year')
-    .order('year', { ascending: true })
-    .limit(1)
-    .returns<{ year: number }[]>()
-  if (error) throw error
-  const oldestYear = oldest?.[0]?.year
-  if (oldestYear === undefined || oldestYear >= oldestKept) {
-    return { keepYears, deleteYears: [], deleteTotal: 0 }
-  }
+/** 報告が存在する年度と件数を古い順に返す */
+export async function fetchReportYearCounts(): Promise<YearCount[]> {
+  const bounds = await Promise.all(
+    [true, false].map((asc) =>
+      supabase
+        .from('service_reports')
+        .select('year')
+        .order('year', { ascending: asc })
+        .limit(1)
+        .returns<{ year: number }[]>(),
+    ),
+  )
+  for (const b of bounds) if (b.error) throw b.error
+  const oldest = bounds[0].data?.[0]?.year
+  const newest = bounds[1].data?.[0]?.year
+  if (oldest === undefined || newest === undefined) return []
 
-  const deleteYears: { year: number; count: number }[] = []
-  for (let y = oldestYear; y < oldestKept; y += 1) {
-    const { count, error: countError } = await supabase
+  // 全件を取って数えると1000件の上限に当たるため、年度ごとに件数だけ問い合わせる
+  const result: YearCount[] = []
+  for (let y = oldest; y <= newest; y += 1) {
+    const { count, error } = await supabase
       .from('service_reports')
       .select('*', { count: 'exact', head: true })
       .eq('year', y)
-    if (countError) throw countError
-    if (count && count > 0) deleteYears.push({ year: y, count })
+    if (error) throw error
+    if (count && count > 0) result.push({ year: y, count })
   }
-  return { keepYears, deleteYears, deleteTotal: deleteYears.reduce((s, d) => s + d.count, 0) }
+  return result
 }
 
-/** 指定した年度より前の報告を削除する。取り消せないので必ず事前に確認すること */
-export async function deleteReportsBefore(oldestKeptYear: number): Promise<void> {
-  const { error } = await supabase.from('service_reports').delete().lt('year', oldestKeptYear)
+/** 指定した年度の報告(12か月分)を削除する。取り消せないので必ず事前に確認すること */
+export async function deleteReportsOfYear(year: number): Promise<void> {
+  const { error } = await supabase.from('service_reports').delete().eq('year', year)
   if (error) throw error
 }
 

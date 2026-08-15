@@ -40,11 +40,17 @@ export interface TableBlock {
   zebra?: boolean
 }
 
-function hexToRgb(hex: string) {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex)
-  if (!m) return undefined
-  const n = parseInt(m[1], 16)
-  return rgb(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255)
+// 画面用の色をそのまま受け取れるよう、#rrggbb と rgb(r, g, b) の両方を解釈する
+// (shortfallColor は rgb(...) 形式を返すため、#rrggbb だけの実装では色が全て無視されていた)
+function parseColor(value: string) {
+  const hex = /^#?([0-9a-f]{6})$/i.exec(value)
+  if (hex) {
+    const n = parseInt(hex[1], 16)
+    return rgb(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255)
+  }
+  const fn = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i.exec(value)
+  if (fn) return rgb(Number(fn[1]) / 255, Number(fn[2]) / 255, Number(fn[3]) / 255)
+  return undefined
 }
 
 /** 列幅に収まるよう末尾を削る(入りきらない備考などのため) */
@@ -159,7 +165,7 @@ export async function renderTablesPdf(options: RenderOptions): Promise<Uint8Arra
       }
       cells.forEach((cell, i) => {
         if (i >= widths.length) return
-        const bg = cell.bg ? hexToRgb(cell.bg) : undefined
+        const bg = cell.bg ? parseColor(cell.bg) : undefined
         if (bg) page.drawRectangle({ x: xs[i], y: rowY, width: widths[i], height: rowHeight, color: bg })
         const baseline = rowY + (rowHeight - fonts.regular.heightAtSize(fontSize, { descender: false })) / 2
         drawCellText(

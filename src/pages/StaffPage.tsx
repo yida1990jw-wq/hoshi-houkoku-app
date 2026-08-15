@@ -7,12 +7,14 @@ import { useAuth } from '../context/AuthContext'
 import { CONSIDERATION_REASONS, fetchReportRules, type ReportRules } from '../lib/reportRules'
 import {
   backupFileStamp,
-  deleteReportsBefore,
+  deleteReportsOfYear,
   downloadFile,
   fetchBackup,
-  planRetention,
+  fetchReportYearCounts,
+  retentionStatus,
   toCsv,
-  type RetentionPlan,
+  type RetentionStatus,
+  type YearCount,
 } from '../lib/backup'
 import { actualServiceYear } from '../lib/serviceYear'
 
@@ -125,11 +127,17 @@ function BackupSection() {
   )
 }
 
-// 保存期間(最低13か月・最長36か月)を過ぎた記録の削除。取り消せない操作なので、
-// 「何年度の何件が消えるか」を必ず先に見せてから実行する
+// 古い記録の削除。年度単位(12か月分)で選んで消す。保存ルール
+// (最低13か月・最長36か月 = 当年度と前年度は必ず残す)に反する年度には警告を出す
+const RETENTION_MESSAGE: Record<RetentionStatus, string> = {
+  deletable: '保存期間(36か月)を過ぎています。削除できます。',
+  withinRetention: '保存期間(36か月)の範囲内です。削除すると保存期間より短くなります。',
+  required: '伝道者記録に必要な年度です(当年度・前年度)。削除しないでください。',
+}
+
 function RetentionSection() {
-  const [plan, setPlan] = useState<RetentionPlan | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [years, setYears] = useState<YearCount[] | null>(null)
+  const [selected, setSelected] = useState<number | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [done, setDone] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -138,14 +146,16 @@ function RetentionSection() {
   const currentYear = actualServiceYear()
 
   async function reload() {
-    setLoading(true)
     try {
-      setPlan(await planRetention(currentYear))
+      const list = await fetchReportYearCounts()
+      setYears(list)
+      // 既定では、消してよい最も古い年度を選んでおく
+      const oldestDeletable = list.find((y) => retentionStatus(y.year, currentYear) === 'deletable')
+      setSelected(oldestDeletable?.year ?? list[0]?.year ?? null)
       setError(null)
     } catch (e) {
       setError((e as { message?: string })?.message || '確認に失敗しました')
-    } finally {
-      setLoading(false)
+      setYears([])
     }
   }
 
@@ -154,15 +164,23 @@ function RetentionSection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const target = years?.find((y) => y.year === selected) ?? null
+  const status = target ? retentionStatus(target.year, currentYear) : null
+
   async function handleDelete() {
-    if (!plan || plan.deleteTotal === 0) return
-    const years = plan.deleteYears.map((d) => `${d.year}年度(${d.count}件)`).join('、')
-    const oldestKept = plan.keepYears[plan.keepYears.length - 1]
+    if (!target || !status) return
+    const warning =
+      status === 'deletable'
+        ? ''
+        : `
+【警告】${RETENTION_MESSAGE[status]}
+`
     if (
       !window.confirm(
-        `次の報告を完全に削除します。取り消せません。\n\n削除: ${years}\n合計 ${plan.deleteTotal}件\n\n` +
-          `残る年度: ${plan.keepYears.slice().reverse().join('・')}年度\n\n` +
-          `先に「データの書き出し」でバックアップを取りましたか?`,
+        `${target.year}年度の報告 ${target.count}件(12か月分)を完全に削除します。取り消せません。
+${warning}
+` +
+          '先に「データの書き出し」でバックアップを取りましたか?',
       )
     )
       return
@@ -170,8 +188,8 @@ function RetentionSection() {
     setError(null)
     setDone(null)
     try {
-      await deleteReportsBefore(oldestKept)
-      setDone(`${plan.deleteTotal}件を削除しました`)
+      await deleteReportsOfYear(target.year)
+      setDone(`${target.year}年度の${target.count}件を削除しました`)
       await reload()
     } catch (e) {
       setError((e as { message?: string })?.message || '削除に失敗しました')
@@ -186,9 +204,8 @@ function RetentionSection() {
         <h2>古い記録の削除</h2>
       </div>
       <p className="reports-hint">
-        奉仕報告は最低13か月・最長36か月の保存とされているため、年度単位で
-        <strong>当年度・前年度・前々年度の3年度分</strong>を残し、それより古い年度を削除します。
-        （13か月とは、伝道者記録の「上段＝前年度の12か月＋下段＝今年度の9月分」の状態を指します）
+        奉仕報告は最低13か月・最長36か月の保存とされています。年度を選んで、その年度の12か月分をまとめて削除します。
+        <strong>当年度({currentYear}年度)と前年度({currentYear - 1}年度)は伝道者記録に必要なので残してください。</strong>
       </p>
       <p className="reports-hint">
         <strong>削除は取り消せません。必ず先に上の「データの書き出し」でバックアップを取ってください。</strong>
@@ -196,30 +213,34 @@ function RetentionSection() {
       {error && <p className="error-text">{error}</p>}
       {done && <p className="reports-hint">{done}</p>}
       <div className="publisher-inline-form">
-        {loading ? (
+        {years === null ? (
           <p className="reports-hint">確認中...</p>
-        ) : plan ? (
+        ) : years.length === 0 ? (
+          <p className="reports-hint">報告がまだありません。</p>
+        ) : (
           <>
-            <p className="reports-hint">
-              残す年度：{plan.keepYears.slice().reverse().join('・')}年度（今は{currentYear}年度です）
-            </p>
-            {plan.deleteTotal === 0 ? (
-              <p className="reports-hint">保存期間を過ぎた記録はありません。</p>
-            ) : (
-              <>
-                <p className="reports-hint">
-                  削除対象：{plan.deleteYears.map((d) => `${d.year}年度 ${d.count}件`).join('、')}
-                  （合計 {plan.deleteTotal}件）
-                </p>
-                <div className="publisher-form-actions">
-                  <button type="button" onClick={handleDelete} disabled={deleting}>
-                    {deleting ? '削除中...' : `${plan.deleteTotal}件を削除する`}
-                  </button>
-                </div>
-              </>
+            <div className="publisher-form-grid">
+              <label>
+                削除する年度
+                <select value={selected ?? ''} onChange={(e) => setSelected(Number(e.target.value))}>
+                  {years.map((y) => (
+                    <option key={y.year} value={y.year}>
+                      {y.year}年度（{y.count}件）
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            {status && (
+              <p className={status === 'required' ? 'error-text' : 'reports-hint'}>{RETENTION_MESSAGE[status]}</p>
             )}
+            <div className="publisher-form-actions">
+              <button type="button" onClick={handleDelete} disabled={deleting || !target}>
+                {deleting ? '削除中...' : target ? `${target.year}年度の${target.count}件を削除する` : '削除する'}
+              </button>
+            </div>
           </>
-        ) : null}
+        )}
       </div>
     </>
   )
