@@ -66,6 +66,44 @@ function AuxChoiceButtons({
   )
 }
 
+// 一時的な調査用。URLに debug を付けたときだけ、この画面の実測値を表示する。
+// 原因が判明したら削除する
+function DebugReadout() {
+  const [text, setText] = useState('')
+
+  useEffect(() => {
+    const measure = () => {
+      const input = document.querySelector('.pr-page input') as HTMLElement | null
+      const vv = window.visualViewport
+      const css = [...document.styleSheets].map((s) => s.href?.split('/').pop()).filter(Boolean)
+      setText(
+        [
+          '氏名欄のサイズ: ' + (input ? getComputedStyle(input).fontSize : '見つからない'),
+          'pr-page: ' + (document.querySelector('.pr-page') ? 'あり' : 'なし'),
+          '倍率: ' + (vv ? vv.scale.toFixed(2) : '-'),
+          'innerWidth: ' + window.innerWidth,
+          'visualWidth: ' + (vv ? Math.round(vv.width) : '-'),
+          'scrollWidth: ' + document.documentElement.scrollWidth,
+          'はみ出し: ' + (document.documentElement.scrollWidth > window.innerWidth + 1 ? 'あり' : 'なし'),
+          'CSS: ' + css.join(','),
+        ].join('\n'),
+      )
+    }
+    measure()
+    const t = setInterval(measure, 1000)
+    return () => clearInterval(t)
+  }, [])
+
+  return (
+    <div style={{ background: '#f2f2f2', borderRadius: 8, padding: 10, marginBottom: 12 }}>
+      <pre style={{ margin: 0, fontSize: 13, whiteSpace: 'pre-wrap' }}>{text}</pre>
+      <button type="button" style={{ marginTop: 8 }} onClick={() => navigator.clipboard?.writeText(text)}>
+        コピー
+      </button>
+    </div>
+  )
+}
+
 export function PublicReportPage() {
   // ログイン中(管理者・監督者)がこの画面に来た場合だけ、管理画面への戻り道を出す。
   // ホーム画面に追加して開くと戻るボタンが無く行き止まりになるため
@@ -327,6 +365,7 @@ export function PublicReportPage() {
   return (
     <div className="login-page login-page-top pr-page">
       <div className="login-form" style={{ maxWidth: 480 }}>
+        {window.location.hash.includes('debug') && <DebugReadout />}
         {/* ログイン中(管理者・監督者)が管理画面から来た場合だけ戻り道を出す。
             ホーム画面に追加して開くと戻るボタンが画面に無く、行き止まりになるため。
             リンクを受け取って開いた伝道者には表示されない */}
