@@ -300,8 +300,9 @@ export function PublicReportPage() {
     })
   }
 
+  // pr-page: スマホから操作する年配の方が多いため、この画面だけ文字とボタンを大きくする
   return (
-    <div className="login-page login-page-top">
+    <div className="login-page login-page-top pr-page">
       <div className="login-form" style={{ maxWidth: 480 }}>
         {/* ログイン中(管理者・監督者)が管理画面から来た場合だけ戻り道を出す。
             ホーム画面に追加して開くと戻るボタンが画面に無く、行き止まりになるため。

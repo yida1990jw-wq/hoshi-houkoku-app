@@ -546,6 +546,90 @@ input {
   cursor: default;
 }
 
+/* ---- 公開報告フォームの拡大表示 ----
+   スマホから操作する年配の方が多いため、この画面だけ文字とボタンを大きくする。
+   管理画面のログイン画面と同じ .login-form を共有しているので、.pr-page を付けた
+   この画面だけに限定して上書きする。 */
+
+.pr-page .login-form {
+  max-width: 420px;
+  gap: 18px;
+  padding: 24px 20px;
+}
+
+.pr-page .login-form h1 {
+  font-size: 26px;
+}
+
+.pr-page .pr-greeting,
+.pr-page .pr-question {
+  font-size: 20px;
+  line-height: 1.5;
+}
+
+.pr-page .reports-hint {
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.pr-page .login-form label {
+  font-size: 17px;
+  gap: 6px;
+}
+
+/* iOSは文字が16px未満の入力欄をタップすると画面を勝手に拡大する。
+   label(14px)を継承していたため拡大が起きていた。明示的に大きくして防ぐ */
+.pr-page .login-form input,
+.pr-page .login-form select,
+.pr-page .login-form textarea {
+  font-size: 17px;
+  padding: 14px 12px;
+}
+
+/* 指で押しやすいよう、ボタンの高さを確保する */
+.pr-page .login-form button {
+  font-size: 18px;
+  min-height: 54px;
+  padding: 12px 16px;
+}
+
+.pr-page .yes-no-buttons {
+  gap: 10px;
+}
+
+.pr-page .yes-no-buttons button {
+  font-size: 18px;
+  min-height: 54px;
+}
+
+/* 考慮理由のチェックボックス。文字も四角も小さく、押し分けにくかった */
+.pr-page .crud-checkbox-group {
+  gap: 4px;
+  flex-direction: column;
+}
+
+/* .login-form label の縦並び指定が(詳細度が同じでCSSの後方にあるため)勝ってしまい、
+   チェックの四角が文字の上に乗っていた。ここで横並びに戻す */
+.pr-page .crud-checkbox-group label {
+  flex-direction: row;
+  align-items: center;
+  font-size: 17px;
+  gap: 10px;
+  padding: 8px 4px;
+  white-space: normal;
+}
+
+.pr-page .crud-checkbox-group input[type='checkbox'] {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.pr-page .error-text {
+  font-size: 16px;
+  line-height: 1.6;
+}
+
 /* ---- date / month nav ---- */
 
 .date-nav {
