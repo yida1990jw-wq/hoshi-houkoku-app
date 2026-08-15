@@ -4,6 +4,7 @@ import QRCode from 'qrcode'
 import { supabase } from '../lib/supabaseClient'
 import { STAFF_ROLES, type Group, type Staff, type StaffRole } from '../types/domain'
 import { useAuth } from '../context/AuthContext'
+import { CONSIDERATION_REASONS, fetchReportRules, type ReportRules } from '../lib/reportRules'
 
 const REPORT_LINK = `${window.location.origin}${window.location.pathname}#/submit`
 
@@ -40,6 +41,126 @@ function ReportLinkSection() {
       </div>
       {qrDataUrl && <img src={qrDataUrl} alt="報告リンクのQRコード" width={220} height={220} />}
     </section>
+  )
+}
+
+// 報告のルール。以前はコードに直接書いていた値を、ここから変えられるようにしている。
+// 変更はそれ以降の報告にだけ効き、過去の報告は当時のルールで計算された値のまま残る
+function ReportRulesSection() {
+  const [draft, setDraft] = useState<ReportRules | null>(null)
+  const [auxText, setAuxText] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchReportRules()
+      .then((r) => {
+        setDraft(r)
+        setAuxText(r.auxPioneerHours.join('、'))
+      })
+      .catch(() => setError('読み込みに失敗しました'))
+  }, [])
+
+  async function handleSave() {
+    if (!draft) return
+    // 「15、30」「15,30」どちらの区切りでも受け付ける
+    const hours = auxText
+      .split(/[、,\s]+/)
+      .map((v) => Number(v.trim()))
+      .filter((v) => Number.isInteger(v) && v > 0)
+    if (hours.length === 0) {
+      setError('補助開拓の選択肢は、1つ以上の数字を入れてください（例: 15、30）')
+      return
+    }
+    if (!CONSIDERATION_REASONS.includes(draft.consideredCapExemptReason as (typeof CONSIDERATION_REASONS)[number])) {
+      setError('上限を適用しない理由は、考慮理由の一覧にあるものを選んでください')
+      return
+    }
+    setSaving(true)
+    setError(null)
+    setSaved(false)
+    const { error: saveError } = await supabase
+      .from('report_rules')
+      .update({
+        considered_hours_cap: draft.consideredHoursCap,
+        considered_cap_exempt_reason: draft.consideredCapExemptReason,
+        aux_pioneer_hours: hours,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', 1)
+    setSaving(false)
+    if (saveError) {
+      setError((saveError as { message?: string }).message || '保存に失敗しました')
+      return
+    }
+    setDraft({ ...draft, auxPioneerHours: hours })
+    setAuxText(hours.join('、'))
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2500)
+  }
+
+  if (!draft) {
+    return (
+      <>
+        <div className="page-header">
+          <h2>報告のルール</h2>
+        </div>
+        {error ? <p className="error-text">{error}</p> : <p className="reports-hint">読み込み中...</p>}
+      </>
+    )
+  }
+
+  return (
+    <>
+      <div className="page-header">
+        <h2>報告のルール</h2>
+      </div>
+      <p className="reports-hint">
+        報告フォームの計算に使う値です。変更した時点より後の報告にだけ効き、過去の報告はそのまま残ります。
+      </p>
+      {error && <p className="error-text">{error}</p>}
+      <div className="publisher-inline-form">
+        <div className="publisher-form-grid">
+          <label>
+            考慮時間の上限（時間）
+            <input
+              type="number"
+              min={1}
+              max={999}
+              value={draft.consideredHoursCap}
+              onChange={(e) => setDraft({ ...draft, consideredHoursCap: Number(e.target.value) })}
+            />
+          </label>
+          <label>
+            上限を適用しない理由
+            <select
+              value={draft.consideredCapExemptReason}
+              onChange={(e) => setDraft({ ...draft, consideredCapExemptReason: e.target.value })}
+            >
+              {CONSIDERATION_REASONS.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            補助開拓の選択肢（時間）
+            <input value={auxText} onChange={(e) => setAuxText(e.target.value)} placeholder="15、30" />
+          </label>
+        </div>
+        <p className="reports-hint">
+          「奉仕時間＋考慮時間」が上限を超えるとき、超えない分まで自動で調整します。「上限を適用しない理由」が選ばれた月は、入力された考慮時間をそのまま採用します。
+          補助開拓の選択肢は、区切って複数入れられます（例: 15、30）。
+        </p>
+        <div className="publisher-form-actions">
+          <button type="button" onClick={handleSave} disabled={saving}>
+            {saving ? '保存中...' : saved ? '保存しました' : '保存'}
+          </button>
+        </div>
+      </div>
+    </>
   )
 }
 
@@ -338,6 +459,8 @@ export function StaffPage() {
       <ReportLinkSection />
 
       <GroupsSection />
+
+      <ReportRulesSection />
 
       <div className="page-header">
         <h2>スタッフ管理</h2>

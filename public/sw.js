@@ -7,7 +7,8 @@
 //
 // Supabase への通信は別オリジンなのでここでは一切触らない(常に素通り)。
 
-const CACHE = 'hoshi-houkoku-v1'
+// 版を上げると、古いキャッシュは activate で丸ごと捨てられる
+const CACHE = 'hoshi-houkoku-v2'
 
 // 内容が変わらないので、一度取得したらキャッシュを使ってよいもの
 const IMMUTABLE = [/\/assets\//, /\/fonts\//, /\/forms\//, /\.png$/, /\.svg$/]
@@ -40,7 +41,11 @@ async function cacheFirst(request) {
 
 async function networkFirst(request) {
   try {
-    const response = await fetch(request)
+    // ブラウザ自身のHTTPキャッシュを経由すると、デプロイ直後でも古い内容が返ることがある
+    // (GitHub Pages は index.html に10分間の再利用を指示するため)。
+    // ここは「常に最新を取りに行く」経路なので、そのキャッシュを迂回する。
+    // mode:'navigate' のリクエストは init 付きで作り直せないため、URLから組み立てる
+    const response = await fetch(request.url, { cache: 'no-store' })
     if (response.ok) {
       const cache = await caches.open(CACHE)
       cache.put(request, response.clone())

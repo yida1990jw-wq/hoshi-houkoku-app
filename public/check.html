@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>表示の診断</title>
+    <style>
+      body { font: 16px/1.6 system-ui, sans-serif; margin: 0; padding: 16px; background: #fff; color: #111; }
+      h1 { font-size: 20px; }
+      .row { border: 1px solid #ccc; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+      .label { font-size: 14px; color: #555; }
+      .val { font-size: 22px; font-weight: 700; }
+      .ok { color: #0a7a28; }
+      .ng { color: #c0362c; }
+      /* 本番の報告フォームと同じ大きさ */
+      #big { font-size: 17px; padding: 14px 12px; width: 100%; box-sizing: border-box; }
+      /* 比較用にわざと小さくしたもの */
+      #small { font-size: 14px; padding: 14px 12px; width: 100%; box-sizing: border-box; }
+      #verdict { font-size: 18px; font-weight: 700; padding: 12px; border-radius: 8px; background: #f2f2f2; }
+    </style>
+  </head>
+  <body>
+    <h1>表示の診断</h1>
+    <p>下の入力欄を順にタップして、数字がどう変わるか見てください。</p>
+
+    <div class="row">
+      <div class="label">① 報告フォームと同じ入力欄（17px）</div>
+      <input id="big" placeholder="ここをタップ" />
+    </div>
+
+    <div class="row">
+      <div class="label">② 比較用にわざと小さくした入力欄（14px）</div>
+      <input id="small" placeholder="ここをタップ" />
+    </div>
+
+    <div id="verdict">タップするとここに結果が出ます</div>
+
+    <div class="row">
+      <div class="label">拡大倍率（1.00 なら等倍）</div>
+      <div class="val" id="scale">-</div>
+    </div>
+    <div class="row">
+      <div class="label">画面の幅 / 見えている幅</div>
+      <div class="val" id="w">-</div>
+    </div>
+    <div class="row">
+      <div class="label">①の実際の文字サイズ</div>
+      <div class="val" id="fs">-</div>
+    </div>
+    <div class="row">
+      <div class="label">横にはみ出しているか</div>
+      <div class="val" id="ov">-</div>
+    </div>
+    <div class="row">
+      <div class="label">ブラウザの種類</div>
+      <div style="font-size: 12px; word-break: break-all" id="ua">-</div>
+    </div>
+
+    <script>
+      var vv = window.visualViewport
+      function scale() {
+        return vv ? vv.scale : 1
+      }
+      function refresh() {
+        document.getElementById('scale').textContent = scale().toFixed(2)
+        document.getElementById('w').textContent =
+          window.innerWidth + ' / ' + (vv ? Math.round(vv.width) : window.innerWidth)
+        document.getElementById('fs').textContent =
+          getComputedStyle(document.getElementById('big')).fontSize
+        var over = document.documentElement.scrollWidth > window.innerWidth + 1
+        var ovEl = document.getElementById('ov')
+        ovEl.textContent = over ? 'はみ出している' : 'はみ出していない'
+        ovEl.className = 'val ' + (over ? 'ng' : 'ok')
+      }
+      function watch(id, label) {
+        var el = document.getElementById(id)
+        el.addEventListener('focus', function () {
+          var before = scale()
+          setTimeout(function () {
+            var after = scale()
+            var zoomed = after > before + 0.01
+            var v = document.getElementById('verdict')
+            v.textContent =
+              label + ' → ' + (zoomed ? '拡大されました' : '拡大されませんでした') +
+              '（' + before.toFixed(2) + ' → ' + after.toFixed(2) + '）'
+            v.className = zoomed ? 'ng' : 'ok'
+            refresh()
+          }, 700)
+        })
+      }
+      watch('big', '① 17pxの欄')
+      watch('small', '② 14pxの欄')
+      document.getElementById('ua').textContent = navigator.userAgent
+      if (vv) {
+        vv.addEventListener('resize', refresh)
+        vv.addEventListener('scroll', refresh)
+      }
+      refresh()
+    </script>
+  </body>
+</html>

@@ -1,14 +1,22 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { computeReportPeriod } from '../lib/reportPeriod'
-import { CONSIDERATION_REASONS, capConsideredHours, composeRemarks, type ConsiderationReason } from '../lib/reportRules'
+import {
+  CONSIDERATION_REASONS,
+  DEFAULT_REPORT_RULES,
+  capConsideredHours,
+  composeRemarks,
+  fetchReportRules,
+  type ConsiderationReason,
+  type ReportRules,
+} from '../lib/reportRules'
 import { PIONEER_TARGET_STATUSES, type PublicPublisherMatch } from '../types/domain'
 
 type Step = 'name' | 'confirm' | 'notice' | 'form' | 'done'
 
-type AuxChoice = 'none' | '15' | '30'
+type AuxChoice = 'none' | number
 
 const EMPTY_FORM = {
   preached: null as boolean | null,
@@ -35,18 +43,25 @@ function YesNoButtons({ value, onChange }: { value: boolean | null; onChange: (v
   )
 }
 
-function AuxChoiceButtons({ value, onChange }: { value: AuxChoice | null; onChange: (v: AuxChoice) => void }) {
+function AuxChoiceButtons({
+  value,
+  hours,
+  onChange,
+}: {
+  value: AuxChoice | null
+  hours: number[]
+  onChange: (v: AuxChoice) => void
+}) {
   return (
     <div className="yes-no-buttons">
       <button type="button" className={value === 'none' ? 'active' : ''} onClick={() => onChange('none')}>
         いいえ
       </button>
-      <button type="button" className={value === '15' ? 'active' : ''} onClick={() => onChange('15')}>
-        15時間
-      </button>
-      <button type="button" className={value === '30' ? 'active' : ''} onClick={() => onChange('30')}>
-        30時間
-      </button>
+      {hours.map((h) => (
+        <button key={h} type="button" className={value === h ? 'active' : ''} onClick={() => onChange(h)}>
+          {h}時間
+        </button>
+      ))}
     </div>
   )
 }
@@ -55,6 +70,9 @@ export function PublicReportPage() {
   // ログイン中(管理者・監督者)がこの画面に来た場合だけ、管理画面への戻り道を出す。
   // ホーム画面に追加して開くと戻るボタンが無く行き止まりになるため
   const { session } = useAuth()
+  // 報告のルール(考慮時間の上限・補助開拓の選択肢)は設定画面から変えられる。
+  // 取得に失敗しても報告できなくならないよう、既定値から始めて読めたら差し替える
+  const [rules, setRules] = useState<ReportRules>(DEFAULT_REPORT_RULES)
   const [step, setStep] = useState<Step>('name')
   const [nameInput, setNameInput] = useState('')
   const [matching, setMatching] = useState(false)
@@ -68,12 +86,16 @@ export function PublicReportPage() {
   const [checkingExisting, setCheckingExisting] = useState(false)
   const [reportExists, setReportExists] = useState(false)
 
+  useEffect(() => {
+    fetchReportRules().then(setRules).catch(() => {})
+  }, [])
+
   const period = useMemo(() => computeReportPeriod(), [])
 
   const publisher = candidate
   const isPublisherStatus = publisher?.pioneer_status === '伝道者'
   // 伝道者でもその月に補助開拓(15h/30h)を行った場合は時間の報告が必要
-  const needsHours = !isPublisherStatus || form.auxChoice === '15' || form.auxChoice === '30'
+  const needsHours = !isPublisherStatus || (form.auxChoice !== null && form.auxChoice !== 'none')
   const isPioneerTarget =
     !!publisher && PIONEER_TARGET_STATUSES.includes(publisher.pioneer_status as (typeof PIONEER_TARGET_STATUSES)[number])
 
@@ -169,10 +191,11 @@ export function PublicReportPage() {
 
   function toggleReason(reason: ConsiderationReason) {
     setForm((f) => {
-      if (reason === '開拓者学校') {
-        return { ...f, reasons: f.reasons.includes('開拓者学校') ? [] : ['開拓者学校'] }
+      const exempt = rules.consideredCapExemptReason as ConsiderationReason
+      if (reason === exempt) {
+        return { ...f, reasons: f.reasons.includes(exempt) ? [] : [exempt] }
       }
-      const withoutSchool = f.reasons.filter((r) => r !== '開拓者学校')
+      const withoutSchool = f.reasons.filter((r) => r !== exempt)
       const has = withoutSchool.includes(reason)
       return { ...f, reasons: has ? withoutSchool.filter((r) => r !== reason) : [...withoutSchool, reason] }
     })
@@ -263,7 +286,7 @@ export function PublicReportPage() {
 
     const consideredHoursRaw = form.hasConsideration ? Number(form.consideredHours) || 0 : 0
     const cappedConsideredHours = form.hasConsideration
-      ? capConsideredHours(hoursNum, consideredHoursRaw, form.reasons)
+      ? capConsideredHours(hoursNum, consideredHoursRaw, form.reasons, rules)
       : 0
 
     // 月間要求時間に満たない場合、備考への記入を必須にする(考慮時間を含めた時間で判定する)
@@ -277,9 +300,9 @@ export function PublicReportPage() {
       return
     }
 
-    const auxChoice = form.auxChoice === 'none' ? null : form.auxChoice
+    const auxHours = form.auxChoice === 'none' || form.auxChoice === null ? null : form.auxChoice
     const remarks = composeRemarks({
-      auxChoice,
+      auxHours,
       reasons: form.hasConsideration ? form.reasons : [],
       otherReasonText: form.otherReasonText,
       consideredHoursRaw,
@@ -287,7 +310,7 @@ export function PublicReportPage() {
       ownRemarks: form.remarks,
     })
 
-    const pioneerStatusSnapshot = auxChoice ? '補助開拓者' : publisher.pioneer_status
+    const pioneerStatusSnapshot = auxHours !== null ? '補助開拓者' : publisher.pioneer_status
 
     await submitReport({
       preached: form.preached ?? false,
@@ -405,7 +428,11 @@ export function PublicReportPage() {
                 {isPublisherStatus && (
                   <div className="yes-no-field">
                     <span className="pr-question">補助開拓を行いましたか</span>
-                    <AuxChoiceButtons value={form.auxChoice} onChange={(v) => setForm((f) => ({ ...f, auxChoice: v }))} />
+                    <AuxChoiceButtons
+                      value={form.auxChoice}
+                      hours={rules.auxPioneerHours}
+                      onChange={(v) => setForm((f) => ({ ...f, auxChoice: v }))}
+                    />
                   </div>
                 )}
 
