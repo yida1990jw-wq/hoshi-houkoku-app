@@ -66,81 +66,6 @@ function AuxChoiceButtons({
   )
 }
 
-// iOSは入力欄をタップすると画面を拡大することがあり、そのまま戻らないため右側が
-// 見切れてしまう。拡大自体を止められない場合の対処として、画面が切り替わった時点で
-// 倍率を元に戻す。viewportの指定を一瞬だけ maximum-scale=1 にして戻すと、
-// iOSは現在の拡大を解除する(指で広げる操作は従来どおり使える)
-function resetZoom() {
-  const meta = document.querySelector('meta[name="viewport"]')
-  if (!meta) return
-  const original = meta.getAttribute('content') ?? ''
-  if (original.includes('maximum-scale')) return
-  meta.setAttribute('content', `${original}, maximum-scale=1`)
-  window.setTimeout(() => meta.setAttribute('content', original), 300)
-}
-
-// 一時的な調査用。URLに debug を付けたときだけ、この画面の実測値を表示する。
-// 原因が判明したら削除する
-function DebugReadout() {
-  const [text, setText] = useState('')
-
-  useEffect(() => {
-    const measure = () => {
-      const input = document.querySelector('.pr-page input') as HTMLElement | null
-      const vv = window.visualViewport
-      const css = [...document.styleSheets].map((s) => s.href?.split('/').pop()).filter(Boolean)
-      // 画面より広がっている要素を実際に探し出して名指しする
-      const layoutWidth = document.documentElement.clientWidth
-      const widest: string[] = []
-      document.querySelectorAll('*').forEach((el) => {
-        const r = (el as HTMLElement).getBoundingClientRect()
-        if (r.width > layoutWidth * 0.99) {
-          const cls = typeof el.className === 'string' && el.className ? '.' + el.className.split(' ')[0] : ''
-          widest.push(`${el.tagName}${cls}=${Math.round(r.width)}`)
-        }
-      })
-      setText(
-        [
-          '氏名欄のサイズ: ' + (input ? getComputedStyle(input).fontSize : '見つからない'),
-          '倍率: ' + (vv ? vv.scale.toFixed(2) : '-'),
-          'clientWidth: ' + layoutWidth,
-          'visualWidth: ' + (vv ? Math.round(vv.width) : '-'),
-          'body幅: ' + Math.round(document.body.getBoundingClientRect().width),
-          'scrollWidth: ' + document.documentElement.scrollWidth,
-          '広い要素: ' + (widest.length ? widest.slice(0, 6).join(' / ') : 'なし'),
-          'CSS: ' + css.join(','),
-        ].join('\n'),
-      )
-    }
-    measure()
-    const t = setInterval(measure, 1000)
-    return () => clearInterval(t)
-  }, [])
-
-  return (
-    // 端末がダーク表示でも読めるよう、背景と文字色を明示する
-    <div
-      style={{
-        background: '#ffffff',
-        color: '#111111',
-        border: '2px solid #4a1fa8',
-        borderRadius: 8,
-        padding: 10,
-        marginBottom: 12,
-      }}
-    >
-      <pre style={{ margin: 0, fontSize: 15, lineHeight: 1.6, color: '#111111', whiteSpace: 'pre-wrap' }}>{text}</pre>
-      <button
-        type="button"
-        style={{ marginTop: 8, padding: '12px 16px', fontSize: 16, background: '#4a1fa8', color: '#fff', border: 'none', borderRadius: 8 }}
-        onClick={() => navigator.clipboard?.writeText(text)}
-      >
-        コピー
-      </button>
-    </div>
-  )
-}
-
 export function PublicReportPage() {
   // ログイン中(管理者・監督者)がこの画面に来た場合だけ、管理画面への戻り道を出す。
   // ホーム画面に追加して開くと戻るボタンが無く行き止まりになるため
@@ -164,11 +89,6 @@ export function PublicReportPage() {
   useEffect(() => {
     fetchReportRules().then(setRules).catch(() => {})
   }, [])
-
-  // 画面が切り替わったら拡大を解除する(入力欄をタップして拡大されたままにしない)
-  useEffect(() => {
-    resetZoom()
-  }, [step])
 
   const period = useMemo(() => computeReportPeriod(), [])
 
@@ -407,7 +327,6 @@ export function PublicReportPage() {
   return (
     <div className="login-page login-page-top pr-page">
       <div className="login-form" style={{ maxWidth: 480 }}>
-        {window.location.hash.includes('debug') && <DebugReadout />}
         {/* ログイン中(管理者・監督者)が管理画面から来た場合だけ戻り道を出す。
             ホーム画面に追加して開くと戻るボタンが画面に無く、行き止まりになるため。
             リンクを受け取って開いた伝道者には表示されない */}
