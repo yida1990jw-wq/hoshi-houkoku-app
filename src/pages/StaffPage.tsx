@@ -13,6 +13,8 @@ import {
   fetchReportYearCounts,
   retentionStatus,
   toCsv,
+  toReportImportCsv,
+  toRosterImportCsv,
   type RetentionStatus,
   type YearCount,
 } from '../lib/backup'
@@ -63,7 +65,7 @@ function BackupSection() {
   const [done, setDone] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  async function run(kind: 'json' | 'publishers' | 'reports') {
+  async function run(kind: 'json' | 'publishers' | 'reports' | 'rosterImport' | 'reportImport') {
     setBusy(kind)
     setError(null)
     setDone(null)
@@ -78,6 +80,12 @@ function BackupSection() {
         const rows = data.publishers.map((p) => ({ ...p, group_name: groupName.get(p.group_id as string) ?? '' }))
         downloadFile(`名簿_${stamp}.csv`, toCsv(rows), 'text/csv;charset=utf-8')
         setDone(`名簿${rows.length}件を書き出しました`)
+      } else if (kind === 'rosterImport') {
+        downloadFile(`取込用_名簿_${stamp}.csv`, toRosterImportCsv(data), 'text/csv;charset=utf-8')
+        setDone(`名簿${data.publishers.length}件を取込用の並びで書き出しました`)
+      } else if (kind === 'reportImport') {
+        downloadFile(`取込用_報告_${stamp}.csv`, toReportImportCsv(data), 'text/csv;charset=utf-8')
+        setDone(`報告${data.serviceReports.length}件を取込用の並びで書き出しました`)
       } else {
         // 報告だけでは誰の行か分からないため、氏名を添えて書き出す
         const name = new Map(data.publishers.map((p) => [p.id as string, `${p.last_name} ${p.first_name}`]))
@@ -119,8 +127,23 @@ function BackupSection() {
           </button>
         </div>
         <p className="reports-hint">
-          「バックアップ（全データ）」は名簿・報告・グループ・設定をまとめた復元用のファイルです。中身を読む用途では
+          「バックアップ（全データ）」は名簿・報告・グループ・設定をまとめたファイルです。中身を読む用途では
           CSVの方をExcelで開けます。
+        </p>
+        <h3 style={{ fontSize: 14, margin: '16px 0 8px' }}>復元用（一括貼り付けにそのまま使えます）</h3>
+        <div className="publisher-form-actions">
+          <button type="button" onClick={() => run('rosterImport')} disabled={!!busy}>
+            {busy === 'rosterImport' ? '書き出し中...' : '取込用CSV（名簿）'}
+          </button>
+          <button type="button" onClick={() => run('reportImport')} disabled={!!busy}>
+            {busy === 'reportImport' ? '書き出し中...' : '取込用CSV（報告）'}
+          </button>
+        </div>
+        <p className="reports-hint">
+          誤って消してしまったときは、これをExcelで開いて必要な行をコピーし、名簿または報告一覧の「一括貼り付け」に
+          貼り付ければ戻せます。列の並びは貼り付け先に合わせてあるので、並べ替えは不要です。報告は末尾に年度・月の列が
+          あるので、Excelで絞り込んでから貼り付けてください（この2列は貼り付けても無視されます）。報告は貼り付け先の
+          画面で選んでいる年度・月に書き込まれるため、<strong>月ごとに選び直して貼り付けてください</strong>。
         </p>
       </div>
     </>

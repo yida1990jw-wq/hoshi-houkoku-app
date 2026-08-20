@@ -73,6 +73,82 @@ export function downloadFile(fileName: string, content: string, mime: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
+// ---- 取込用CSV ----
+// 名簿・報告の「一括貼り付け」がそのまま受け取れる並び・表記で書き出す。
+// これがあると、消してしまったデータをExcelから貼り付けるだけで戻せる。
+// 素のCSV(toCsv)はDBの列順・表記そのままなので、並べ替えと値の変換が必要になり、
+// 特に宣教が true/false のままだと取込側が「いいえ」と解釈して全件NC(集計対象外)に
+// なってしまう。取込用ではそこも変換しておく。
+
+function csvOf(header: string[], rows: unknown[][]): string {
+  return toCsv(
+    rows.map((r) => Object.fromEntries(header.map((h, i) => [h, r[i]]))),
+    header,
+  )
+}
+
+/** 名簿の一括貼り付けと同じ並び。17・18列目の要求時間は取込側でも読む */
+export function toRosterImportCsv(data: BackupData): string {
+  const groupName = new Map(data.groups.map((g) => [g.id as string, g.name as string]))
+  const rows = [...data.publishers]
+    .sort((a, b) => String(a.romaji ?? '').localeCompare(String(b.romaji ?? '')))
+    .map((p) => [
+      p.last_name,
+      p.first_name,
+      p.last_name_kana,
+      p.first_name_kana,
+      p.romaji,
+      p.gender,
+      p.birth_date,
+      p.baptism_date,
+      p.dedication,
+      p.hope,
+      groupName.get(p.group_id as string) ?? '',
+      p.qualification,
+      p.elder_qualified_on,
+      p.servant_qualified_on,
+      p.pioneer_status,
+      p.pioneer_started_on,
+      p.annual_hour_target,
+      p.monthly_hour_target,
+    ])
+  return csvOf(
+    ['姓', '名', '姓(フリガナ)', '名(フリガナ)', 'ローマ字', '性別', '生年月日', 'バプテスマの日付',
+      '献身', '希望', 'グループ', '資格', '長老資格日', '援助奉仕者資格日', '立場', '開拓開始日',
+      '年間要求時間', '月間要求時間'],
+    rows,
+  )
+}
+
+/**
+ * 報告の一括貼り付けと同じ並び。取込側は先頭8列までしか読まないので、
+ * 末尾の年度・月は貼り付けても無害で、Excelで月ごとに絞り込むのに使える
+ */
+export function toReportImportCsv(data: BackupData): string {
+  const name = new Map(data.publishers.map((p) => [p.id as string, `${p.last_name} ${p.first_name}`]))
+  const rows = [...data.serviceReports]
+    .sort(
+      (a, b) =>
+        Number(a.year) - Number(b.year) ||
+        Number(a.month) - Number(b.month) ||
+        String(name.get(a.publisher_id as string) ?? '').localeCompare(String(name.get(b.publisher_id as string) ?? '')),
+    )
+    .map((r) => [
+      name.get(r.publisher_id as string) ?? '',
+      // 取込側は「はい」で始まるかどうかだけを見る。true/false のままだと全件いいえ扱いになる
+      r.preached ? 'はい' : 'いいえ',
+      r.bible_studies,
+      r.hours,
+      r.remarks ?? '',
+      r.considered_hours,
+      r.pioneer_status_snapshot,
+      r.no_count ? 'NC' : '',
+      r.year,
+      r.month,
+    ])
+  return csvOf(['氏名', '宣教', '研究', '時間', '備考', '考慮', '立場', 'NC', '年度', '月'], rows)
+}
+
 // ---- 保存期間と、年度単位での削除 ----
 // 組織の指示により、奉仕報告は最低13か月・最長36か月保存する。
 // 13か月とはS-21の「上段=前年度の12か月 + 下段=今年度の9月分」の状態を指すため、

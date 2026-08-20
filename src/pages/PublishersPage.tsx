@@ -485,11 +485,15 @@ export function PublishersPage() {
         servantDateRaw,
         pioneerStatusRaw,
         pioneerStartedRaw,
+        annualTargetRaw,
+        monthlyTargetRaw,
       ] = cols
 
       const lastName = lastNameRaw?.trim()
       const firstName = firstNameRaw?.trim()
       if (!lastName || !firstName) continue
+      // 書き出したCSVを見出し行ごと貼り付けた場合に、「姓 名」という人が作られないようにする
+      if (lastName === '姓' && firstName === '名') continue
 
       const rowLabel = `${lastName} ${firstName}`
 
@@ -526,6 +530,16 @@ export function PublishersPage() {
       if (elderDateRaw?.trim() && !elderDate) warnings.push(`${rowLabel}: 長老資格日「${elderDateRaw}」を読み取れませんでした`)
       const servantDate = parseFlexibleDate(servantDateRaw)
       if (servantDateRaw?.trim() && !servantDate) warnings.push(`${rowLabel}: 援助奉仕者資格日「${servantDateRaw}」を読み取れませんでした`)
+      // 17・18列目(任意)。書き出したCSVから戻すときに要求時間が失われないようにする
+      const parseTarget = (raw: string | undefined) => {
+        const t = raw?.trim()
+        if (!t) return null
+        const n = Number(t)
+        return Number.isFinite(n) && n > 0 ? Math.round(n) : null
+      }
+      const annualTarget = parseTarget(annualTargetRaw)
+      const monthlyTarget = parseTarget(monthlyTargetRaw)
+
       const pioneerStarted = parseFlexibleYearMonth(pioneerStartedRaw)
       if (pioneerStartedRaw?.trim() && !pioneerStarted) warnings.push(`${rowLabel}: 開拓開始日「${pioneerStartedRaw}」を読み取れませんでした`)
 
@@ -546,6 +560,8 @@ export function PublishersPage() {
         servant_qualified_on: servantDate,
         pioneer_status: pioneerStatus,
         pioneer_started_on: pioneerStarted,
+        annual_hour_target: annualTarget,
+        monthly_hour_target: monthlyTarget,
       })
     }
 
@@ -616,7 +632,7 @@ export function PublishersPage() {
           <p className="paste-import-hint">
             タブ区切りで次の順に貼り付けてください(1行1人、姓・名は必須、他は空欄可):
             <br />
-            姓・名・姓(フリガナ)・名(フリガナ)・ローマ字・性別・生年月日・バプテスマの日付・献身・希望・グループ・資格・長老資格日・援助奉仕者資格日・立場・開拓開始日(年月)
+            姓・名・姓(フリガナ)・名(フリガナ)・ローマ字・性別・生年月日・バプテスマの日付・献身・希望・グループ・資格・長老資格日・援助奉仕者資格日・立場・開拓開始日(年月)・年間要求時間(任意)・月間要求時間(任意)
             <br />
             性別は「男性/女性」、献身は「兄弟/姉妹」、希望は「ほかの羊/天に行く者」、資格は「長老/援助奉仕者」、立場は「伝道者/補助開拓者/正規開拓者/特別開拓者/野外の宣教者/不活発者」(名簿シートの短縮コード「伝・開・特開・野宣・不・長・援」もそのまま使えます)。日付は
             1955-02-19 のような形式、開拓開始日は 2024/9 のように年月だけで構いません。

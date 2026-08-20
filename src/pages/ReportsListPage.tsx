@@ -357,9 +357,11 @@ export function ReportsListPage() {
 
     for (const line of lines) {
       const cols = line.split('\t')
-      const [nameRaw, preachedRaw, studiesRaw, hoursRaw, remarksRaw, consideredRaw, statusRaw] = cols
+      const [nameRaw, preachedRaw, studiesRaw, hoursRaw, remarksRaw, consideredRaw, statusRaw, noCountRaw] = cols
       const name = normalizeName(nameRaw ?? '')
       if (!name) continue
+      // 書き出したCSVの見出し行を貼り付けた場合に、照合失敗の警告を出さない
+      if (name === '氏名') continue
 
       const publisher = publishers.find((p) => normalizeName(`${p.last_name}${p.first_name}`) === name)
       if (!publisher) {
@@ -389,7 +391,9 @@ export function ReportsListPage() {
         remarks: remarksRaw?.trim() || null,
         pioneer_status_snapshot: pioneerStatusSnapshot,
         // 宣教「いいえ」の月は集計対象外(NC)にする
-        no_count: !preached,
+        // 8列目(任意)。転入前の記録のように「宣教はしたが集計には入れない」行を
+        // 復元できるようにする。列が無ければ従来どおり「いいえ＝NC」の自動判定
+        no_count: noCountRaw?.trim() ? /^(nc|true|1|○|はい)$/i.test(noCountRaw.trim()) : !preached,
       })
     }
 
@@ -475,7 +479,7 @@ export function ReportsListPage() {
         <details className="paste-import">
           <summary>報告を一括で貼り付けて取り込む({year}年度{month}月分)</summary>
           <p className="paste-import-hint">
-            Googleスプレッドシートから「氏名・宣教(はい/いいえ)・研究・時間・備考・考慮・立場(任意)」の順にタブ区切りでコピーして貼り付けてください（1行1人）。氏名は名簿の姓名と完全一致(空白除く)で照合します。「立場」列はその月だけ補助開拓者だった場合などに指定してください。省略した場合は名簿の現在の立場が使われます。既に報告がある人・月の組み合わせは内容が上書きされ、貼り付けたデータに含まれない人の報告はそのまま残ります。宣教が「いいえ」の行は自動的にNC(集計対象外)になります。
+            Googleスプレッドシートから「氏名・宣教(はい/いいえ)・研究・時間・備考・考慮・立場(任意)・NC(任意)」の順にタブ区切りでコピーして貼り付けてください（1行1人）。氏名は名簿の姓名と完全一致(空白除く)で照合します。「立場」列はその月だけ補助開拓者だった場合などに指定してください。省略した場合は名簿の現在の立場が使われます。既に報告がある人・月の組み合わせは内容が上書きされ、貼り付けたデータに含まれない人の報告はそのまま残ります。宣教が「いいえ」の行は自動的にNC(集計対象外)になります。
           </p>
           <textarea
             className="paste-import-textarea"
