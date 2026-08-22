@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { computeReportPeriod } from '../lib/reportPeriod'
+import { isPeriodClosed } from '../lib/closedPeriods'
 import {
   CONSIDERATION_REASONS,
   DEFAULT_REPORT_RULES,
@@ -85,12 +86,22 @@ export function PublicReportPage() {
   const [validationError, setValidationError] = useState<string | null>(null)
   const [checkingExisting, setCheckingExisting] = useState(false)
   const [reportExists, setReportExists] = useState(false)
+  // 対象月が確定済みなら入力させない。判定できるまでは表示を保留する
+  const [closed, setClosed] = useState<boolean | null>(null)
 
   useEffect(() => {
     fetchReportRules().then(setRules).catch(() => {})
   }, [])
 
   const period = useMemo(() => computeReportPeriod(), [])
+
+  useEffect(() => {
+    // 確定済みの月は書き込んでもRLSで拒否されるため、入力を始める前に知らせる。
+    // 判定できないときは従来どおり入力させる(送信時にRLSが最終的に止める)
+    isPeriodClosed(period.year, period.month)
+      .then(setClosed)
+      .catch(() => setClosed(false))
+  }, [period])
 
   const publisher = candidate
   const isPublisherStatus = publisher?.pioneer_status === '伝道者'
@@ -340,7 +351,16 @@ export function PublicReportPage() {
           対象月: {period.year}年度{period.month}月
         </p>
 
-        {step === 'name' && (
+        {closed === true && (
+          <div>
+            <p className="pr-greeting">{period.month}月分の報告は締め切られました。</p>
+            <p className="reports-hint">
+              お手数ですが書記にご連絡ください。
+            </p>
+          </div>
+        )}
+
+        {closed === false && step === 'name' && (
           <div>
             <label>
               氏名

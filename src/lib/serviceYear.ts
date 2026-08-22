@@ -22,6 +22,15 @@ export function currentMonth(date = new Date()): number {
   return date.getMonth() + 1
 }
 
+// 奉仕年度の並び(9月始まり)での「翌月」。8月の次は翌奉仕年度の9月になる。
+// 確定後に遅れて提出された報告を翌月の会衆集計に加算するときに使う
+export function nextServicePeriod(year: number, month: number): { year: number; month: number } {
+  const index = SERVICE_YEAR_MONTHS.indexOf(month as (typeof SERVICE_YEAR_MONTHS)[number])
+  if (index < 0) return { year, month }
+  if (index === SERVICE_YEAR_MONTHS.length - 1) return { year: year + 1, month: SERVICE_YEAR_MONTHS[0] }
+  return { year, month: SERVICE_YEAR_MONTHS[index + 1] }
+}
+
 export function serviceYearLabel(year: number): string {
   return `${year}年度（${year - 1}年9月〜${year}年8月）`
 }

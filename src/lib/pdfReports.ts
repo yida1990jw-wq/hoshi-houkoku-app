@@ -34,7 +34,17 @@ function outputNote() {
 export async function buildReportListPdf(year: number, month: number): Promise<Uint8Array> {
   const [pubRes, reportRes] = await Promise.all([
     supabase.from('publishers').select('*').returns<Publisher[]>(),
-    supabase.from('service_reports').select('*').eq('year', year).eq('month', month).returns<ServiceReport[]>(),
+    // この月の報告に加えて、前月から「翌月に加算」で回ってきた分も載せる。
+    // 毎月この一覧をPDFにして共有し、過去の月を出し直さない運用のため、
+    // 遅れて提出された分がその月の一覧に載っていないと誰にも共有されないままになる
+    supabase
+      .from('service_reports')
+      .select('*')
+      .or(
+        `and(year.eq.${year},month.eq.${month},counted_in_month.is.null),` +
+          `and(counted_in_year.eq.${year},counted_in_month.eq.${month})`,
+      )
+      .returns<ServiceReport[]>(),
   ])
   if (pubRes.error) throw pubRes.error
   if (reportRes.error) throw reportRes.error
@@ -57,13 +67,15 @@ export async function buildReportListPdf(year: number, month: number): Promise<U
     const m = counted.filter((r) => r.pioneer_status_snapshot === status)
     return {
       label,
-      count: m.length,
+      // 「報告の数」は行数ではなく人数で数える。前月から回ってきた分により
+      // 同じ人の行が2つ入りうるため(会衆集計と同じ数え方)
+      count: new Set(m.map((r) => r.publisher_id)).size,
       studies: m.reduce((s, r) => s + r.bible_studies, 0),
       hours: m.reduce((s, r) => s + r.hours, 0),
     }
   })
   const total = {
-    count: summaryRows.reduce((s, r) => s + r.count, 0),
+    count: new Set(counted.map((r) => r.publisher_id)).size,
     studies: summaryRows.reduce((s, r) => s + r.studies, 0),
     hours: summaryRows.reduce((s, r) => s + r.hours, 0),
   }
@@ -87,6 +99,8 @@ export async function buildReportListPdf(year: number, month: number): Promise<U
     const p = byId.get(r.publisher_id)
     return [
       { text: p ? `${p.last_name} ${p.first_name}` : '' },
+      // 遅れて提出され前月から回ってきた分は、同じ人が2行並ぶことがあるので月を示す
+      { text: r.month === month ? '' : `${r.month}月`, align: 'center' as const },
       { text: r.preached ? '○' : '×', align: 'center' },
       { text: String(r.bible_studies), align: 'right' },
       { text: r.hours > 0 ? String(r.hours) : '―', align: 'right' },
@@ -118,14 +132,15 @@ export async function buildReportListPdf(year: number, month: number): Promise<U
         caption: '報告',
         zebra: true,
         columns: [
-          { header: '氏名', flex: 3.4 },
+          { header: '氏名', flex: 3.1 },
+          { header: '対象月', flex: 1.1 },
           { header: '宣教', flex: 1 },
           { header: '研究', flex: 1 },
           { header: '時間', flex: 1.1 },
           { header: '考慮', flex: 1 },
           { header: '立場', flex: 1 },
           { header: 'NC', flex: 0.8 },
-          { header: '備考', flex: 5.5 },
+          { header: '備考', flex: 5.0 },
         ],
         rows,
       },

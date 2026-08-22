@@ -74,6 +74,10 @@ export interface ServiceReport {
   pioneer_status_snapshot: PioneerStatus
   // 転入前の記録など、本人の記録には残すが集計には反映させたくない報告に立てるフラグ
   no_count: boolean
+  // 会衆集計だけ別の月に数えるための指定(空なら year / month をそのまま使う)。
+  // 確定後に遅れて提出された報告を、組織の指示どおり翌月の会衆の報告に加算するために使う
+  counted_in_year: number | null
+  counted_in_month: number | null
   created_at: string
 }
 

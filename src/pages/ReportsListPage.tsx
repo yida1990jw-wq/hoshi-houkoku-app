@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { PIONEER_STATUSES, type Publisher, type ServiceReport } from '../types/domain'
-import { currentMonth, currentServiceYear } from '../lib/serviceYear'
+import { currentMonth, currentServiceYear, nextServicePeriod } from '../lib/serviceYear'
+import { closePeriod, fetchClosedPeriod, reopenPeriod, type ClosedPeriod } from '../lib/closedPeriods'
 import { useSessionPersistedState } from '../lib/usePersistedState'
 import { mapPioneerStatus } from '../lib/importParsing'
 import { fetchLatestReportedPeriod } from '../lib/latestPeriod'
@@ -34,6 +35,8 @@ interface ReportDraft {
   remarks: string
   pioneer_status_snapshot: string
   no_count: boolean
+  // 確定後に遅れて提出された分を、翌月の会衆集計に加算する
+  carryOver: boolean
 }
 
 const EMPTY_DRAFT: ReportDraft = {
@@ -45,6 +48,7 @@ const EMPTY_DRAFT: ReportDraft = {
   remarks: '',
   pioneer_status_snapshot: PIONEER_STATUSES[0],
   no_count: false,
+  carryOver: false,
 }
 
 function draftFromReport(r: ServiceReport): ReportDraft {
@@ -57,10 +61,13 @@ function draftFromReport(r: ServiceReport): ReportDraft {
     remarks: r.remarks ?? '',
     pioneer_status_snapshot: r.pioneer_status_snapshot,
     no_count: r.no_count,
+    carryOver: r.counted_in_year !== null && r.counted_in_month !== null,
   }
 }
 
-function draftToPatch(d: ReportDraft) {
+function draftToPatch(d: ReportDraft, year: number, month: number) {
+  // 「翌月に加算」は会衆集計だけの付け替え。伝道者記録は year / month のまま
+  const carried = d.carryOver ? nextServicePeriod(year, month) : null
   return {
     preached: d.preached,
     bible_studies: Number(d.bible_studies) || 0,
@@ -69,6 +76,8 @@ function draftToPatch(d: ReportDraft) {
     remarks: d.remarks.trim() || null,
     pioneer_status_snapshot: d.pioneer_status_snapshot,
     no_count: d.no_count,
+    counted_in_year: carried?.year ?? null,
+    counted_in_month: carried?.month ?? null,
   }
 }
 
@@ -155,6 +164,14 @@ function ReportFormFields({
           onChange={(e) => setDraft((d) => ({ ...d, no_count: e.target.checked }))}
         />
       </label>
+      <label title="確定後に遅れて提出された報告です。本人の伝道者記録にはこの月のまま残し、会衆集計だけ翌月に加算します(人数は重複して数えません)">
+        翌月に加算
+        <input
+          type="checkbox"
+          checked={draft.carryOver}
+          onChange={(e) => setDraft((d) => ({ ...d, carryOver: e.target.checked }))}
+        />
+      </label>
     </div>
   )
 }
@@ -171,6 +188,9 @@ export function ReportsListPage() {
   const [draft, setDraft] = useState<ReportDraft>(EMPTY_DRAFT)
   const [pasteText, setPasteText] = useState('')
   const [importing, setImporting] = useState(false)
+  // 確定済みの月は報告フォームからの追加・上書きを受け付けない(実際に止めているのはRLS)
+  const [closedPeriod, setClosedPeriod] = useState<ClosedPeriod | null>(null)
+  const [closing, setClosing] = useState(false)
   const [importResult, setImportResult] = useState<{ added: number; warnings: string[] } | null>(null)
 
   useEffect(() => {
@@ -189,7 +209,17 @@ export function ReportsListPage() {
   const fetchData = useCallback(async () => {
     const [{ data: pubData, error: pubError }, { data: reportData, error: reportError }] = await Promise.all([
       supabase.from('publishers').select('*').order('last_name_kana').returns<Publisher[]>(),
-      supabase.from('service_reports').select('*').eq('year', year).eq('month', month).returns<ServiceReport[]>(),
+      // この月の報告に加えて、前月から「翌月に加算」で回ってきた分も一緒に取る。
+      // 毎月この一覧をPDFにして共有するため、遅れて出された分もその月の一覧に載る必要がある。
+      // 逆に、この月から翌月へ回した分はここには出さない(翌月の一覧に載る)
+      supabase
+        .from('service_reports')
+        .select('*')
+        .or(
+          `and(year.eq.${year},month.eq.${month},counted_in_month.is.null),` +
+            `and(counted_in_year.eq.${year},counted_in_month.eq.${month})`,
+        )
+        .returns<ServiceReport[]>(),
     ])
     if (pubError) throw pubError
     if (reportError) throw reportError
@@ -202,6 +232,21 @@ export function ReportsListPage() {
     setPublishers(data.publishers)
     setReports(data.reports)
   }
+
+  useEffect(() => {
+    // 年度・月を切り替えたら確定状態も取り直す。古い結果で上書きしないよう cancelled で守る
+    let cancelled = false
+    fetchClosedPeriod(year, month)
+      .then((p) => {
+        if (!cancelled) setClosedPeriod(p)
+      })
+      .catch(() => {
+        if (!cancelled) setClosedPeriod(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [year, month])
 
   useEffect(() => {
     // 起動直後にfetchLatestReportedPeriodの結果でyear/monthが変わると、
@@ -252,13 +297,15 @@ export function ReportsListPage() {
       const matching = counted.filter((r) => r.pioneer_status_snapshot === status)
       return {
         label,
-        count: matching.length,
+        // 「報告の数」は行数ではなく人数で数える。前月から回ってきた分により
+        // 同じ人の行が2つ入りうるため(会衆集計と同じ数え方)
+        count: new Set(matching.map((r) => r.publisher_id)).size,
         studies: matching.reduce((sum, r) => sum + r.bible_studies, 0),
         hours: matching.reduce((sum, r) => sum + r.hours, 0),
       }
     })
     const total = {
-      count: rows.reduce((sum, r) => sum + r.count, 0),
+      count: new Set(counted.map((r) => r.publisher_id)).size,
       studies: rows.reduce((sum, r) => sum + r.studies, 0),
       hours: rows.reduce((sum, r) => sum + r.hours, 0),
     }
@@ -304,11 +351,17 @@ export function ReportsListPage() {
           publisher_id: draft.publisher_id,
           year,
           month,
-          ...draftToPatch(draft),
+          ...draftToPatch(draft, year, month),
         })
         if (error) throw error
       } else if (editingId) {
-        const { error } = await supabase.from('service_reports').update(draftToPatch(draft)).eq('id', editingId)
+        // 前月から回ってきた行を編集している場合があるため、「翌月に加算」の行き先は
+        // 画面で選んでいる月ではなく、その報告自身の年度・月から求める
+        const target = reports.find((r) => r.id === editingId)
+        const { error } = await supabase
+          .from('service_reports')
+          .update(draftToPatch(draft, target?.year ?? year, target?.month ?? month))
+          .eq('id', editingId)
         if (error) throw error
       }
       await refetch()
@@ -319,7 +372,7 @@ export function ReportsListPage() {
   }
 
   async function handleDelete(r: ServiceReport) {
-    if (!window.confirm(`${publisherName(r.publisher_id)}の${month}月の報告を削除しますか?`)) return
+    if (!window.confirm(`${publisherName(r.publisher_id)}の${r.month}月の報告を削除しますか?`)) return
     setError(null)
     try {
       const { error } = await supabase.from('service_reports').delete().eq('id', r.id)
@@ -412,15 +465,54 @@ export function ReportsListPage() {
     }
   }
 
+  async function reloadClosed() {
+    try {
+      setClosedPeriod(await fetchClosedPeriod(year, month))
+    } catch {
+      setClosedPeriod(null)
+    }
+  }
+
+  async function handleToggleClose() {
+    const unreported = publishers.filter((p) => p.is_active && !reports.some((r) => r.publisher_id === p.id)).length
+    if (closedPeriod) {
+      if (!window.confirm(`${year}年度${month}月の確定を解除します。報告フォームからの提出を再び受け付けます。`)) return
+    } else if (
+      !window.confirm(
+        `${year}年度${month}月を確定します。以後、報告フォームからの提出・上書きはできなくなります。\n` +
+          (unreported > 0 ? `\n未提出の方が${unreported}名います。\n` : '') +
+          '\n確定後に遅れて提出された分は、この画面から手入力し「翌月に加算」にチェックしてください。',
+      )
+    )
+      return
+    setClosing(true)
+    setError(null)
+    try {
+      if (closedPeriod) await reopenPeriod(year, month)
+      else await closePeriod(year, month)
+      await reloadClosed()
+    } catch (e) {
+      setError((e as { message?: string })?.message || '処理に失敗しました')
+    } finally {
+      setClosing(false)
+    }
+  }
+
   if (loading) return <div className="center-message">読み込み中...</div>
 
   return (
     <div className="page">
       <div className="page-header">
         <h1>報告一覧</h1>
+        {closedPeriod && <span className="reports-hint">確定済み</span>}
         <Link className="header-button" to={`/print/report-list/${year}/${month}`}>
           PDF出力
         </Link>
+        {isAdmin && (
+          <button type="button" onClick={handleToggleClose} disabled={closing}>
+            {closing ? '処理中...' : closedPeriod ? '確定を解除' : 'この月を確定する'}
+          </button>
+        )}
         {isAdmin && (
           <button type="button" onClick={toggleAddRow}>
             {editingId === NEW_ROW_ID ? '取消' : '+ 追加'}
@@ -510,6 +602,7 @@ export function ReportsListPage() {
         <thead>
           <tr>
             <th>氏名</th>
+            <th>対象月</th>
             <th>宣教</th>
             <th>研究</th>
             <th>時間</th>
@@ -562,6 +655,7 @@ export function ReportsListPage() {
             ) : (
               <tr key={r.id}>
                 <td>{publisherName(r.publisher_id)}</td>
+                <td>{r.month === month ? '' : `${r.month}月分`}</td>
                 <td>{r.preached ? '✓' : ''}</td>
                 <td>{r.bible_studies}</td>
                 <td>{r.hours || ''}</td>

@@ -209,23 +209,39 @@ export async function fetchCongregationSummaryCardData(
   // 会衆全体×2年度分は1000件近く/超えうるため、Supabaseのデフォルト行数上限(1000件)による
   // 取得漏れを避けるべく年度ごとに分けて取得する(1年度分なら在籍者数的に上限内に収まる)
   const [{ data: previousYearReports, error: previousYearError }, { data: selectedYearReports, error: selectedYearError }] =
-    await Promise.all([
-      supabase.from('service_reports').select('*').eq('year', previousYear).returns<ServiceReport[]>(),
-      supabase.from('service_reports').select('*').eq('year', selectedYear).returns<ServiceReport[]>(),
-    ])
+    await Promise.all(
+      // counted_in_year で他の年度から回ってくる分も拾う(前年度8月→当年度9月への付け替えなど)
+      [previousYear, selectedYear].map((y) =>
+        supabase
+          .from('service_reports')
+          .select('*')
+          .or(`year.eq.${y},counted_in_year.eq.${y}`)
+          .returns<ServiceReport[]>(),
+      ),
+    )
   if (previousYearError) throw previousYearError
   if (selectedYearError) throw selectedYearError
-  const reports = [...(previousYearReports ?? []), ...(selectedYearReports ?? [])]
+  // 2つのクエリは範囲が重なりうる(付け替えで両方に現れる行がある)ため、idで重複を除く
+  const reports = [...(previousYearReports ?? []), ...(selectedYearReports ?? [])].filter(
+    (r, i, all) => all.findIndex((x) => x.id === r.id) === i,
+  )
 
   const matching = reports.filter((r) => matchesSummaryPattern(r, pattern))
 
   const blocks = [previousYear, selectedYear].map((year) => ({
     year,
     months: SERVICE_YEAR_MONTHS.map((month) => {
-      const monthReports = matching.filter((r) => r.year === year && r.month === month)
+      // 会衆集計で数える月は counted_in_* が優先される。確定後に遅れて提出された報告を
+      // 翌月に加算するための指定で、伝道者記録側(year/month)には影響しない
+      const monthReports = matching.filter(
+        (r) => (r.counted_in_year ?? r.year) === year && (r.counted_in_month ?? r.month) === month,
+      )
       return {
         month,
-        count: monthReports.length,
+        // 「報告の数」は行数ではなく人数で数える。付け替えにより同じ人の行が
+        // 同じ月に2つ(その月の分と、前月から回ってきた分)入りうるため、1名として数える。
+        // 付け替えが無ければ(伝道者,年度,月)は一意なので、従来の行数と同じ結果になる
+        count: new Set(monthReports.map((r) => r.publisher_id)).size,
         studies: monthReports.reduce((sum, r) => sum + r.bible_studies, 0),
         hours: monthReports.reduce((sum, r) => sum + r.hours, 0),
       }
